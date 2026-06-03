@@ -1,0 +1,23 @@
+{
+  "name": "e2e-backoffice",
+  "version": "1.0.0",
+  "description": "Tests E2E Playwright pour le backoffice Swapn (qg.swapn.tech)",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:login": "playwright test login.spec --project=logged-out",
+    "test:smoke": "playwright test smoke.spec --project=chromium",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/mailparser": "^3.4.6",
+    "@types/node": "^25.5.0",
+    "dotenv": "^17.4.0"
+  },
+  "dependencies": {
+    "imapflow": "^1.3.1",
+    "mailparser": "^3.9.9"
+  }
+}
