@@ -25,8 +25,11 @@ function extractCode(text: string): string | null {
 
 /**
  * Récupère le code OTP (6 chiffres) via IMAP Gmail.
- * - Identifiant IMAP : GMAIL_USER si défini, sinon AUTH_EMAIL.
- * - Expéditeur recherché : option senderFilter > OTP_SENDER > défaut Tiime.
+ * - Identifiant IMAP : GMAIL_USER si défini, sinon défaut jean.baptiste.barbe@swapn.fr.
+ * - Expéditeur recherché : option senderFilter > OTP_SENDER > défaut jeanbaptiste.barbe@gmail.com.
+ *
+ * GMAIL_USER et OTP_SENDER ne sont pas des secrets : ils ont un défaut intégré,
+ * donc seul GMAIL_APP_PASSWORD est strictement requis pour la récupération OTP.
  *
  * Le corps MIME est décodé (mailparser) avant extraction, pour ne pas
  * confondre le code avec les nombres présents dans les en-têtes bruts.
@@ -36,10 +39,10 @@ function extractCode(text: string): string | null {
  */
 export async function fetchOtpFromGmail(options: OtpOptions = {}): Promise<string> {
   const email =
-    options.email ?? process.env.GMAIL_USER ?? process.env.AUTH_EMAIL!;
+    options.email ?? process.env.GMAIL_USER ?? 'jean.baptiste.barbe@swapn.fr';
   const appPassword = options.appPassword ?? process.env.GMAIL_APP_PASSWORD!;
   const senderFilter =
-    options.senderFilter ?? process.env.OTP_SENDER ?? 'no-reply@apps.tiime.fr';
+    options.senderFilter ?? process.env.OTP_SENDER ?? 'jeanbaptiste.barbe@gmail.com';
   const timeoutMs = options.timeoutMs ?? 90_000;
   const pollIntervalMs = options.pollIntervalMs ?? 3_000;
   const sentAfter = options.sentAfter ?? new Date();

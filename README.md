@@ -41,17 +41,22 @@ Le fichier `.env` contient des **secrets** et n'est **pas versionné**. Recrée-
 cp .env.example .env      # Windows PowerShell : copy .env.example .env
 ```
 
-Puis renseigne les valeurs :
+Grâce aux valeurs par défaut intégrées au code, **seules 3 variables sont strictement
+obligatoires** (les secrets) — les autres ont un défaut et ne sont à définir que pour
+surcharger :
 
-| Variable | Rôle |
-|----------|------|
-| `BASE_URL` | URL du backoffice testé (pré-rempli : `https://qg.swapn.tech/`) |
-| `AUTH0_BASE_URL` | URL Auth0 (pré-rempli : `https://auth0.tiime.fr`) |
-| `AUTH_EMAIL` | email du compte de test Auth0 Tiime |
-| `AUTH_PASSWORD` | mot de passe du compte de test |
-| `GMAIL_USER` | boîte IMAP recevant l'OTP (vide ⇒ réutilise `AUTH_EMAIL`) |
-| `GMAIL_APP_PASSWORD` | **App Password** Gmail (pas le mot de passe du compte) — voir [aide Google](https://support.google.com/accounts/answer/185833) |
-| `OTP_SENDER` | adresse expéditrice de l'email contenant le code OTP |
+| Variable | Requis ? | Rôle / défaut |
+|----------|----------|---------------|
+| `AUTH_EMAIL` | ✅ **obligatoire** | email du compte de test Auth0 Tiime |
+| `AUTH_PASSWORD` | ✅ **obligatoire** | mot de passe du compte de test |
+| `GMAIL_APP_PASSWORD` | ✅ **obligatoire** | **App Password** Gmail (pas le mot de passe du compte) — voir [aide Google](https://support.google.com/accounts/answer/185833) |
+| `BASE_URL` | optionnel | URL du backoffice — défaut : `https://qg.swapn.tech/` |
+| `GMAIL_USER` | optionnel | boîte IMAP recevant l'OTP — défaut : `jean.baptiste.barbe@swapn.fr` |
+| `OTP_SENDER` | optionnel | expéditeur de l'email OTP (SMS transféré) — défaut : `jeanbaptiste.barbe@gmail.com` |
+
+> **Intégration CI / SquashTM** : il suffit de déclarer les **3 variables obligatoires**
+> comme variables d'environnement (associées au projet/orchestrateur). `BASE_URL`,
+> `GMAIL_USER` et `OTP_SENDER` ayant un défaut, elles sont facultatives sur le runner.
 
 ### 4. MFA SMS (dépendance « hors-code »)
 

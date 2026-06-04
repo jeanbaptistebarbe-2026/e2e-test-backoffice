@@ -13,7 +13,9 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   timeout: 60_000,
   use: {
-    baseURL: process.env.BASE_URL,
+    // BASE_URL n'est pas un secret (URL publique) : on fournit un défaut
+    // pour que les tests tournent même sans variable d'environnement injectée.
+    baseURL: process.env.BASE_URL ?? 'https://qg.swapn.tech/',
     trace: 'on-first-retry',
   },
 
