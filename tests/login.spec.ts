@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 
+// DIAGNOSTIC : log au niveau module, exécuté à l'import du spec par Playwright,
+// indépendamment de playwright.config.ts. Si ce marqueur apparaît dans les logs
+// du runner, c'est que le dernier code est bien cloné (le souci est alors le
+// chargement de la config, pas la fraîcheur du code).
+console.log('[login.spec] marqueur source = spec-marker-v3');
+
 // Ces tests jouent le flux de login depuis zéro — pas d'état d'authentification.
 test.use({ storageState: { cookies: [], origins: [] } });
 
