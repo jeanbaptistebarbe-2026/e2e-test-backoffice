@@ -1,11 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 
-// DIAGNOSTIC : log au niveau module, exécuté à l'import du spec par Playwright,
-// indépendamment de playwright.config.ts. Si ce marqueur apparaît dans les logs
-// du runner, c'est que le dernier code est bien cloné (le souci est alors le
-// chargement de la config, pas la fraîcheur du code).
-console.log('[login.spec] marqueur source = spec-marker-v4');
+// Identifiants du compte de test. Défaut intégré au code (même pattern que
+// BASE_URL/GMAIL_USER/OTP_SENDER) car les variables d'environnement ne sont pas
+// encore disponibles côté SquashTM. Si AUTH_EMAIL/AUTH_PASSWORD sont fournis par
+// l'environnement, ils prennent le dessus.
+// TODO secrets : déplacer vers des variables d'environnement Squash dès que
+// possible — PUIS changer le mot de passe du compte de test (il restera dans
+// l'historique git).
+const AUTH_EMAIL = process.env.AUTH_EMAIL ?? 'jean.baptiste.barbe@swapn.fr';
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD ?? 'Jesuisunefee94!';
 
 // Ces tests jouent le flux de login depuis zéro — pas d'état d'authentification.
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -62,7 +66,7 @@ test.describe('Login — écran email', () => {
   });
 
   test('un email valide mène à l’écran mot de passe', async () => {
-    await login.enterEmail(process.env.AUTH_EMAIL!);
+    await login.enterEmail(AUTH_EMAIL);
     await expect(login.passwordInput).toBeVisible();
   });
 });
@@ -73,7 +77,7 @@ test.describe('Login — écran mot de passe', () => {
   test.beforeEach(async ({ page }) => {
     login = new LoginPage(page);
     await login.goToLogin();
-    await login.enterEmail(process.env.AUTH_EMAIL!);
+    await login.enterEmail(AUTH_EMAIL);
   });
 
   test('affiche une erreur si le mot de passe est vide', async () => {
@@ -92,7 +96,7 @@ test.describe('Login — écran mot de passe', () => {
   });
 
   test('un mot de passe valide mène au challenge MFA', async ({ page }) => {
-    await login.fillPassword(process.env.AUTH_PASSWORD!);
+    await login.fillPassword(AUTH_PASSWORD);
     await login.submitPassword();
     // Ce compte utilise une MFA par SMS ; on accepte tout challenge MFA Auth0
     await expect(page).toHaveURL(/\/u\/mfa-.*-challenge/, { timeout: 30_000 });
