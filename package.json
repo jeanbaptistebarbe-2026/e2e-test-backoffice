@@ -6,8 +6,8 @@
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:login": "playwright test login.spec --project=logged-out",
-    "test:smoke": "playwright test smoke.spec --project=chromium",
+    "test:login": "playwright test login.spec",
+    "test:smoke": "playwright test smoke.spec",
     "report": "playwright show-report"
   },
   "devDependencies": {

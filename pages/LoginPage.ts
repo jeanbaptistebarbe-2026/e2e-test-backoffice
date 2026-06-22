@@ -100,8 +100,10 @@ export class LoginPage extends BasePage {
    * Aucune dépendance à un téléphone : Auth0 envoie le code à l'adresse du compte.
    */
   async loginWithOtp(
-    email = process.env.AUTH_EMAIL!,
-    password = process.env.AUTH_PASSWORD!,
+    // Défauts intégrés (même pattern que BASE_URL) car les variables d'env ne sont
+    // pas garanties côté SquashTM ; surchargés par AUTH_EMAIL/AUTH_PASSWORD si fournis.
+    email = process.env.AUTH_EMAIL ?? 'jean.baptiste.barbe@swapn.fr',
+    password = process.env.AUTH_PASSWORD ?? 'Jesuisunefee94!',
   ): Promise<void> {
     await this.goToLogin();
     await this.enterEmail(email);

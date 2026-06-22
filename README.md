@@ -97,22 +97,35 @@ npm run test:headed
 ```
 .
 ├── tests/
-│   ├── auth.setup.ts      # setup — login Auth0 + OTP → produit le storageState
-│   ├── login.spec.ts      # projet logged-out — flux de login Auth0 (sans auth)
-│   └── smoke.spec.ts      # projet chromium — backoffice chargé (avec auth)
-├── pages/                 # Page Object Model
-│   ├── BasePage.ts
-│   ├── LoginPage.ts
-│   └── HomePage.ts
+│   ├── fixtures.ts            # base partagée : auth en fixture + screenshot d'échec
+│   ├── login.spec.ts          # flux de login Auth0 (logged-out)
+│   ├── signatures.spec.ts     # CRUD signatures
+│   ├── templates.spec.ts      # CRUD templates
+│   ├── collaborators.spec.ts  # liste + invitation
+│   ├── integrations.spec.ts   # page intégrations
+│   ├── calendar.spec.ts       # calendrier (conditionné au SSO Google)
+│   └── smoke.spec.ts          # smoke authentifié
+├── pages/                     # Page Object Model
+│   ├── BasePage.ts            #   base : navigation / résolution d'URL
+│   ├── AdminListPage.ts       #   base des listes CRUD admin
+│   ├── LoginPage.ts           #   login Auth0 + bascule MFA e-mail
+│   ├── SignaturesPage.ts  TemplatesPage.ts  CollaboratorsPage.ts
+│   ├── IntegrationsPage.ts  CalendarPage.ts  HomePage.ts
 ├── utils/
-│   └── email-otp.ts       # récupération du code MFA e-mail Auth0 via IMAP
-├── playwright.config.ts   # 3 projets : setup / logged-out / chromium
-└── .env.example           # template des variables d'environnement
+│   └── email-otp.ts           # récupération du code MFA e-mail Auth0 via IMAP
+├── playwright.config.ts       # 1 projet Chromium (auth en fixture, pas en projet)
+└── .env.example               # template des variables d'environnement
 ```
 
-### Organisation des projets Playwright
+### Authentification (fixture, pas de projet)
 
-- **`setup`** — `auth.setup.ts` : s'authentifie via Auth0 et sauvegarde l'état
-  (`playwright/.auth/user.json`), réutilisé par les tests authentifiés.
-- **`logged-out`** — `login.spec.ts` : valide le flux de login Auth0 **sans** état d'auth.
-- **`chromium`** — `smoke.spec.ts` : tests authentifiés, dépendent de `setup`.
+L'auth est gérée **en code** dans `tests/fixtures.ts` (et non via des `projects`/`dependencies`, que
+l'orchestrateur SquashTM ignore) :
+
+- les specs authentifiés importent `test` → une fixture se connecte **une fois** (login + MFA e-mail),
+  met l'état en cache (`playwright/.auth/user.json`) et le réutilise (verrou fichier pour sérialiser
+  entre workers) ;
+- `login.spec.ts` importe `loggedOutTest` → contexte vierge pour valider le flux de connexion.
+
+Chaque spec est donc **autonome** : on peut lancer toute la suite (ou un sous-ensemble) sans
+orchestration de config — y compris sur SquashTM (réf. du test auto = `tests/`).

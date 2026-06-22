@@ -37,9 +37,8 @@ Aucune dépendance applicative : c'est un projet de test autonome qui attaque le
 
 ```
 .
-├── tests/                     # Les specs (*.spec.ts) + setup + fixtures
-│   ├── auth.setup.ts          # Authentification (produit le storageState)
-│   ├── fixtures.ts            # Base de test partagée (screenshot auto en cas d'échec)
+├── tests/                     # Les specs (*.spec.ts) + fixtures
+│   ├── fixtures.ts            # Base partagée : auth en fixture + screenshot d'échec
 │   ├── login.spec.ts          # Flux de login Auth0 (sans auth)
 │   ├── signatures.spec.ts     # CRUD signatures
 │   ├── templates.spec.ts      # CRUD templates
@@ -59,21 +58,26 @@ Aucune dépendance applicative : c'est un projet de test autonome qui attaque le
 │   └── HomePage.ts
 ├── utils/
 │   └── email-otp.ts           # Récupération du code MFA via IMAP
-├── playwright.config.ts       # 3 projets, reporters, timeouts, retries
+├── playwright.config.ts       # 1 projet Chromium, reporters, timeouts, retries
 └── .env                       # secrets (non versionné)
 ```
 
-### Les 3 « projets » Playwright (`playwright.config.ts`)
+### Authentification gérée par une fixture (`tests/fixtures.ts`)
 
-1. **`setup`** — exécute `auth.setup.ts` : se connecte (login + MFA) et **sauvegarde l'état de session**
-   dans `playwright/.auth/user.json`. Timeout étendu (180 s) car dépend de l'arrivée de l'e-mail OTP.
-2. **`logged-out`** — exécute `login.spec.ts` **sans** session : valide le flux de connexion Auth0
-   (erreurs de saisie, redirections, arrivée au challenge MFA).
-3. **`chromium`** — tous les autres specs, **authentifiés** : réutilisent le `storageState` produit par
-   `setup` (déclaré en `dependencies`), donc ne rejouent pas le login à chaque test.
+L'authentification n'est **pas** câblée via des `projects`/`dependencies` Playwright (ignorés par
+SquashTM, voir §4) mais **en code**, dans une fixture :
 
-> Concrètement : on s'authentifie **une seule fois** par run, puis tous les tests métier repartent de
-> cette session.
+- Les specs authentifiés importent `test` depuis `./fixtures` : une fixture override le `storageState`
+  et garantit une session via `ensureAuthState()` — qui **se connecte une seule fois** (login + MFA
+  e-mail), met l'état en cache sur disque (`playwright/.auth/user.json`) et **sérialise via un verrou
+  fichier** pour qu'un seul worker se connecte (les autres réutilisent le fichier produit).
+- Les tests de login importent `loggedOutTest` : contexte **vierge** (pas de session), pour valider le
+  flux de connexion lui-même.
+
+> Conséquence clé : chaque spec est **autonome**. On peut lancer **toute la suite** (ou n'importe quel
+> sous-ensemble) sans orchestration de config → ce qui la rend **exécutable telle quelle par SquashTM**
+> (réf. du test auto = `tests/`). On s'authentifie une seule fois par run, puis tous les tests métier
+> repartent de cette session (login à froid ~30 s, puis cache).
 
 ---
 
@@ -94,9 +98,11 @@ notre `playwright.config.ts`**. Conséquence : `use.baseURL`, `projects`, `repor
 ne s'appliquent pas sur le runner.
 
 **Règle d'or du repo** : tout ce qui doit marcher sous Squash est résolu **dans le code** via
-`process.env` + valeurs par défaut (ex. `BasePage` reconstruit une URL absolue depuis `BASE_URL`, le
-screenshot d'échec est une **fixture code** et non `use.screenshot`). Les réglages de stabilité
-(`workers`, `retries`, `expect.timeout`) sont, eux, purement **locaux**.
+`process.env` + valeurs par défaut, ou via des **fixtures**, jamais via `playwright.config.ts`.
+Exemples : `BasePage` reconstruit une URL absolue depuis `BASE_URL` ; le screenshot d'échec et
+**l'authentification** sont des **fixtures** (cf. §3) et non des `projects`/`dependencies`/`use.screenshot`.
+C'est ce qui permet d'exécuter **toute la suite** sur le runner (réf. du test auto = `tests/`). Les
+réglages de stabilité (`workers`, `retries`, `expect.timeout`) sont, eux, purement **locaux**.
 
 ---
 
@@ -141,19 +147,21 @@ par e-mail (infra Auth0) et est lu par IMAP. Variables nécessaires : `GMAIL_USE
 > fiable en CI. Une variante webhook (Cloudflare Worker) a été prototypée puis abandonnée car le SMS
 > gardait le téléphone dans la boucle. La **MFA e-mail native d'Auth0** rend tout cela inutile.
 
-> **Limite connue** : la livraison de l'e-mail OTP par Auth0 a parfois >120 s de latence → le `setup`
-> peut être marqué « flaky » (rattrapé par le retry). Piste d'amélioration : passer la MFA du compte de
-> test en **TOTP** (code calculé hors-ligne avec un secret, zéro e-mail) — nécessite que les admins Auth0
-> Tiime activent le facteur authenticator.
+> **Limite connue** : la livraison de l'e-mail OTP par Auth0 a parfois >120 s de latence → la connexion
+> (dans la fixture d'auth) peut échouer puis être rattrapée par le retry. Piste d'amélioration : passer la
+> MFA du compte de test en **TOTP** (code calculé hors-ligne avec un secret, zéro e-mail) — nécessite que
+> les admins Auth0 Tiime activent le facteur authenticator.
 
 ---
 
-## 6. Couverture de tests (19 tests)
+## 6. Couverture de tests (18 tests)
+
+> L'authentification (login + MFA e-mail) n'est plus un « test » mais une **fixture** (§3) ; elle est
+> donc exercée dès qu'un test authentifié tourne, et `smoke.spec.ts` vérifie que la session aboutit.
 
 | Domaine | Spec | Ce qui est vérifié | Auth |
 |---|---|---|---|
 | **Login Auth0** | `login.spec.ts` (9) | page `/auth`, redirection Auth0, validations email/mot de passe, arrivée au challenge MFA | non |
-| **Setup auth** | `auth.setup.ts` (1) | login complet + MFA e-mail → produit le `storageState` | — |
 | **Smoke** | `smoke.spec.ts` (1) | le backoffice charge après authentification | oui |
 | **Signatures** | `signatures.spec.ts` (2) | pages liste + « mes signatures » ; **cycle de vie complet** : création → édition → suppression | oui |
 | **Templates** | `templates.spec.ts` (2) | liste ; **cycle de vie complet** : création → édition → suppression | oui |

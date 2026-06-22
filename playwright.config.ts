@@ -33,39 +33,18 @@ export default defineConfig({
   // saturer (sinon chargements lents → timeouts intermittents).
   workers: process.env.CI ? 1 : 3,
   reporter: [['list'], ['html', { open: 'never' }]],
-  timeout: 60_000,
+  // Élevé car l'authentification (login + MFA e-mail) est faite à la volée dans une
+  // fixture (cf. tests/fixtures.ts) et peut prendre jusqu'à ~2 min la première fois.
+  timeout: 180_000,
   // Marge pour les assertions web-first (données de liste chargées en async).
   expect: { timeout: 10_000 },
   use: {
+    ...devices['Desktop Chrome'],
     baseURL: BASE_URL,
     trace: 'on-first-retry',
   },
 
-  projects: [
-    {
-      // Authentification Auth0 + OTP — produit le storageState réutilisé ensuite
-      name: 'setup',
-      testMatch: /auth\.setup\.ts/,
-      timeout: 180_000,
-    },
-    {
-      // Tests du flux de login Auth0 — s'exécutent SANS authentification
-      name: 'logged-out',
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: { cookies: [], origins: [] },
-      },
-      testMatch: /login\.spec\.ts/,
-    },
-    {
-      // Tests authentifiés — réutilisent le storageState produit par "setup"
-      name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'playwright/.auth/user.json',
-      },
-      dependencies: ['setup'],
-      testIgnore: [/auth\.setup\.ts/, /login\.spec\.ts/],
-    },
-  ],
+  // Pas de `projects` ni de `dependencies` : l'authentification est gérée par une
+  // fixture EN CODE (autonome), pour que chaque spec soit exécutable par SquashTM
+  // qui ignore ce playwright.config.ts. Un seul projet Chromium implicite.
 });

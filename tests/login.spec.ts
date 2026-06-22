@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { loggedOutTest as test, expect } from './fixtures';
 import { LoginPage } from '../pages/LoginPage';
 
 // Identifiants du compte de test. Défaut intégré au code (même pattern que
@@ -11,8 +11,8 @@ import { LoginPage } from '../pages/LoginPage';
 const AUTH_EMAIL = process.env.AUTH_EMAIL ?? 'jean.baptiste.barbe@swapn.fr';
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD ?? 'Jesuisunefee94!';
 
-// Ces tests jouent le flux de login depuis zéro — pas d'état d'authentification.
-test.use({ storageState: { cookies: [], origins: [] } });
+// Ces tests jouent le flux de login depuis zéro : `loggedOutTest` fournit déjà un
+// contexte vierge (pas d'état d'authentification).
 
 test.describe('Login — page /auth du backoffice', () => {
   let login: LoginPage;
