@@ -1,4 +1,4 @@
-import { test as setup } from '@playwright/test';
+import { test as setup } from './fixtures';
 import { LoginPage } from '../pages/LoginPage';
 
 const authFile = 'playwright/.auth/user.json';

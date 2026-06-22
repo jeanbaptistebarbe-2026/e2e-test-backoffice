@@ -1,10 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { LoginPage } from '../pages/LoginPage';
 
 // Identifiants du compte de test. Défaut intégré au code (même pattern que
-// BASE_URL/GMAIL_USER/OTP_SENDER) car les variables d'environnement ne sont pas
-// encore disponibles côté SquashTM. Si AUTH_EMAIL/AUTH_PASSWORD sont fournis par
-// l'environnement, ils prennent le dessus.
+// BASE_URL) car les variables d'environnement ne sont pas encore disponibles
+// côté SquashTM. Si AUTH_EMAIL/AUTH_PASSWORD sont fournis par l'environnement,
+// ils prennent le dessus.
 // TODO secrets : déplacer vers des variables d'environnement Squash dès que
 // possible — PUIS changer le mot de passe du compte de test (il restera dans
 // l'historique git).

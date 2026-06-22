@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test } from './fixtures';
 import { HomePage } from '../pages/HomePage';
 
 test.describe('Smoke — backoffice', () => {
