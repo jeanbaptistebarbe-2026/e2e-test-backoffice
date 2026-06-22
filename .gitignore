@@ -3,3 +3,8 @@ node_modules/
 playwright/.auth/
 playwright-report/
 test-results/
+
+# Fichiers de travail / sondes jetables — ne jamais committer
+_*.mjs
+_*.png
+scratch/

@@ -10,22 +10,32 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 // rattraperait pas.
 const BASE_URL = process.env.BASE_URL?.trim() || 'https://qg.swapn.tech/';
 
-// Trace de diagnostic — visible dans les logs du runner. Confirme la valeur
-// effective ET le marqueur de build (prouve que c'est bien ce commit qui tourne).
-console.log(
-  `[playwright.config] baseURL résolu = ${BASE_URL} | BASE_URL env = ` +
-    (process.env.BASE_URL === undefined ? 'absent' : JSON.stringify(process.env.BASE_URL)) +
-    ' | marqueur build = baseurl-fallback-v2',
-);
+// Trace de diagnostic Squash (baseURL résolu + marqueur de build, pour vérifier
+// quel commit tourne sur le runner). Activée uniquement avec DEBUG_E2E afin de
+// garder une sortie propre par défaut.
+if (process.env.DEBUG_E2E) {
+  console.log(
+    `[playwright.config] baseURL résolu = ${BASE_URL} | BASE_URL env = ` +
+      (process.env.BASE_URL === undefined ? 'absent' : JSON.stringify(process.env.BASE_URL)) +
+      ' | marqueur build = baseurl-fallback-v2',
+  );
+}
 
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // 1 retry en local : la cible (preprod distante partagée) a des à-coups de
+  // latence → absorbe les timeouts transitoires sans masquer un vrai échec
+  // (un test qui échoue 2 fois de suite reste rouge).
+  retries: process.env.CI ? 2 : 1,
+  // Cible distante (preprod) : on borne le parallélisme local pour ne pas la
+  // saturer (sinon chargements lents → timeouts intermittents).
+  workers: process.env.CI ? 1 : 3,
   reporter: [['list'], ['html', { open: 'never' }]],
   timeout: 60_000,
+  // Marge pour les assertions web-first (données de liste chargées en async).
+  expect: { timeout: 10_000 },
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',

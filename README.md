@@ -1,8 +1,9 @@
 # E2E Backoffice — Tests Playwright Swapn
 
 Tests end-to-end [Playwright](https://playwright.dev) du backoffice Swapn (`qg.swapn.tech`).
-Couvre le flux d'authentification **Auth0 Tiime** (login + MFA SMS via OTP récupéré sur Gmail/IMAP)
-et un smoke test du backoffice. Architecture **Page Object Model**.
+Couvre le flux d'authentification **Auth0 Tiime** (login + MFA, le test bascule sur le facteur
+**« E-mail »** et lit le code en IMAP — aucun téléphone requis) et un smoke test du backoffice.
+Architecture **Page Object Model**.
 
 ---
 
@@ -22,7 +23,7 @@ et un smoke test du backoffice. Architecture **Page Object Model**.
 npm install
 ```
 
-Installe les dépendances npm (`@playwright/test`, `dotenv`, `imapflow`, `mailparser`, …).
+Installe les dépendances npm (`@playwright/test`, `dotenv`, …).
 
 > ⚠️ **Étape souvent oubliée** : `npm install` n'installe **pas** les navigateurs.
 > Il faut les télécharger séparément :
@@ -41,31 +42,28 @@ Le fichier `.env` contient des **secrets** et n'est **pas versionné**. Recrée-
 cp .env.example .env      # Windows PowerShell : copy .env.example .env
 ```
 
-Grâce aux valeurs par défaut intégrées au code, **seules 3 variables sont strictement
-obligatoires** (les secrets) — les autres ont un défaut et ne sont à définir que pour
-surcharger :
-
 | Variable | Requis ? | Rôle / défaut |
 |----------|----------|---------------|
-| `AUTH_EMAIL` | ✅ **obligatoire** | email du compte de test Auth0 Tiime |
+| `AUTH_EMAIL` | ✅ **obligatoire** | email du compte de test Auth0 Tiime (= adresse qui reçoit le code MFA) |
 | `AUTH_PASSWORD` | ✅ **obligatoire** | mot de passe du compte de test |
-| `GMAIL_APP_PASSWORD` | ✅ **obligatoire** | **App Password** Gmail (pas le mot de passe du compte) — voir [aide Google](https://support.google.com/accounts/answer/185833) |
+| `GMAIL_APP_PASSWORD` | ✅ **obligatoire** (secret) | mot de passe d'application IMAP de la boîte du compte — voir [aide Google](https://support.google.com/accounts/answer/185833) |
 | `BASE_URL` | optionnel | URL du backoffice — défaut : `https://qg.swapn.tech/` |
-| `GMAIL_USER` | optionnel | boîte IMAP recevant l'OTP — défaut : `jean.baptiste.barbe@swapn.fr` |
-| `OTP_SENDER` | optionnel | expéditeur de l'email OTP (SMS transféré) — défaut : `jeanbaptiste.barbe@gmail.com` |
+| `GMAIL_USER` | optionnel | boîte IMAP lue — défaut : `jean.baptiste.barbe@swapn.fr` |
+| `OTP_SENDER` | optionnel | expéditeur du mail OTP Auth0 — défaut : `no-reply@apps.tiime.fr` |
 
-> **Intégration CI / SquashTM** : il suffit de déclarer les **3 variables obligatoires**
-> comme variables d'environnement (associées au projet/orchestrateur). `BASE_URL`,
-> `GMAIL_USER` et `OTP_SENDER` ayant un défaut, elles sont facultatives sur le runner.
+> **Intégration CI / SquashTM** : déclarer les variables obligatoires comme variables
+> d'environnement (associées au projet/orchestrateur). `BASE_URL`, `GMAIL_USER` et
+> `OTP_SENDER` ayant un défaut, elles sont facultatives sur le runner.
 
-### 4. MFA SMS (dépendance « hors-code »)
+### 4. MFA par e-mail (sans téléphone)
 
-Le compte de test utilise une **MFA par SMS**. Le code envoyé par Tiime par SMS doit arriver
-dans la boîte Gmail configurée ci-dessus, via un **Raccourci iOS** qui transfère le SMS reçu
-sur l'iPhone vers cette adresse email. Les tests lisent ensuite l'OTP en IMAP.
+Le compte de test a deux facteurs MFA Auth0 : **SMS** (défaut) et **E-mail**. Le test bascule
+automatiquement sur le facteur **« E-mail »** après le mot de passe (« Essayer une autre méthode »
+→ « E-mail ») ; Auth0 envoie alors le code à l'adresse du compte, que le test lit en **IMAP**
+(`utils/email-otp.ts`). Aucune dépendance à un téléphone ni à un quelconque relais.
 
-Sur une nouvelle machine, rien à réinstaller pour ça : c'est l'iPhone qui transfère.
-Il faut simplement que la boîte Gmail du `.env` reçoive bien ces emails.
+Sur une nouvelle machine, rien à réinstaller pour ça : il faut seulement que la boîte du compte
+soit accessible en IMAP (renseigner `GMAIL_APP_PASSWORD`).
 
 ---
 
@@ -107,9 +105,7 @@ npm run test:headed
 │   ├── LoginPage.ts
 │   └── HomePage.ts
 ├── utils/
-│   └── gmail-otp.ts       # récupération de l'OTP via IMAP Gmail
-├── tools/
-│   └── imap-check.mjs     # script de diagnostic IMAP
+│   └── email-otp.ts       # récupération du code MFA e-mail Auth0 via IMAP
 ├── playwright.config.ts   # 3 projets : setup / logged-out / chromium
 └── .env.example           # template des variables d'environnement
 ```
