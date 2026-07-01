@@ -50,12 +50,6 @@ export abstract class AdminListPage extends BasePage {
     await this.page.waitForURL((url) => detail.test(url.pathname), { timeout: 15_000 });
   }
 
-  /** Menu de la ligne → « Dupliquer ». */
-  async duplicateFromRow(name: string): Promise<void> {
-    await this.openRowMenu(name);
-    await this.page.getByRole('menuitem', { name: 'Dupliquer' }).click();
-  }
-
   /**
    * Menu de la ligne → « Supprimer », puis confirmation dans le dialog
    * (« Cette action est irréversible »). Distingue le bouton du dialog du menuitem.

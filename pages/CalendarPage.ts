@@ -13,17 +13,11 @@ import { BasePage } from './BasePage';
  */
 export class CalendarPage extends BasePage {
   readonly newEventButton: Locator;
-  readonly viewTablist: Locator;
-  readonly daySections: Locator;
-  readonly eventCards: Locator;
   readonly eventTimes: Locator;
 
   constructor(page: Page) {
     super(page);
     this.newEventButton = page.getByRole('button', { name: 'Nouvel événement' });
-    this.viewTablist = page.getByRole('tablist');
-    this.daySections = page.locator('section');
-    this.eventCards = page.locator('section div.rounded-lg.border.bg-card');
     // Chaque événement porte une plage horaire en chiffres tabulaires.
     this.eventTimes = page.locator('span.tabular-nums');
   }

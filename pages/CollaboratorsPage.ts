@@ -13,7 +13,6 @@ export class CollaboratorsPage extends BasePage {
 
   readonly searchInput: Locator;
   readonly inviteButton: Locator;
-  readonly refreshButton: Locator;
   readonly table: Locator;
   readonly rows: Locator;
 
@@ -25,7 +24,6 @@ export class CollaboratorsPage extends BasePage {
     super(page);
     this.searchInput = page.getByPlaceholder('Rechercher par nom ou email...');
     this.inviteButton = page.getByRole('button', { name: 'Inviter' });
-    this.refreshButton = page.getByRole('button', { name: 'Rafraîchir' });
     this.table = page.getByRole('table');
     this.rows = this.table.locator('tbody tr');
 

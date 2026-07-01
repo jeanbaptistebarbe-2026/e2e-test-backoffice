@@ -106,6 +106,10 @@ async function ensureAuthState(browser: Browser): Promise<string> {
 const baseTest = base.extend<{ autoScreenshotOnFailure: void }>({
   autoScreenshotOnFailure: [
     async ({ page }, use, testInfo) => {
+      // Le runner SquashTM ignore `timeout` de playwright.config.ts et applique son
+      // défaut (30 s), trop court pour la préprod distante. On relève le timeout du
+      // corps de test EN CODE pour ne pas dépendre d'une option CLI côté runner.
+      testInfo.setTimeout(120_000);
       await use();
       if (testInfo.status !== testInfo.expectedStatus) {
         const screenshot = await page
@@ -125,9 +129,16 @@ const baseTest = base.extend<{ autoScreenshotOnFailure: void }>({
 
 /** Test authentifié : injecte une session obtenue/mise en cache via `ensureAuthState`. */
 export const test = baseTest.extend({
-  storageState: async ({ browser }, use) => {
-    await use(await ensureAuthState(browser));
-  },
+  storageState: [
+    async ({ browser }, use) => {
+      await use(await ensureAuthState(browser));
+    },
+    // Timeout DÉDIÉ à la mise en place de l'auth (login + MFA e-mail Auth0, jusqu'à
+    // ~2 min de latence sur l'OTP), distinct du timeout de test. Indispensable car le
+    // runner SquashTM ignore `timeout` de playwright.config.ts et plafonne à 30 s,
+    // ce qui coupait le `setup` de `storageState` en plein login.
+    { timeout: 200_000 },
+  ],
 });
 
 /** Test « logged-out » : contexte vierge, pour valider le flux de login. */

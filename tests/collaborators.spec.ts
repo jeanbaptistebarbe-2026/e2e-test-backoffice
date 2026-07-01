@@ -22,9 +22,10 @@ test.describe('Collaborators — liste (authentifié)', () => {
 
   test('inviter un collaborateur (email jetable, statut « Invité »)', async ({ page }) => {
     const collaborators = new CollaboratorsPage(page);
-    // Email unique par run. NB : pas de révocation possible dans l'UI → l'invitation
-    // en attente reste dans la liste (choix assumé : invitation réelle).
-    const email = `jean.baptiste.barbe+e2e-${Date.now()}@swapn.fr`;
+    // Email unique par run, sur le domaine @tiime.fr : l'app rejette l'invitation
+    // (la modale ne se ferme pas) si l'adresse n'est pas @tiime.fr. NB : pas de
+    // révocation possible dans l'UI → l'invitation en attente reste dans la liste.
+    const email = `e2e-${Date.now()}@tiime.fr`;
 
     await collaborators.goToList();
     await collaborators.openInvite();

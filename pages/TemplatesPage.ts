@@ -7,9 +7,9 @@ import { AdminListPage } from './AdminListPage';
  * Supprimer, suppression confirmée, redirection au submit) via [AdminListPage].
  *
  * Le formulaire de création/édition (`/administration/templates/new` puis `/{uuid}`)
- * a un champ nom (`#template-name`), un sélecteur de tribus, et un contenu en
- * textareas (onglets « Version mail » / « Version chat »). Bouton de validation :
- * « Valider template ».
+ * a un champ nom (`#template-name`), un sélecteur de tribus, et deux champs de contenu
+ * REQUIS pour activer « Valider template » : l'objet `Objet du mail` (textarea) ET le
+ * corps `Template de mail` (éditeur riche `contenteditable`).
  */
 export class TemplatesPage extends AdminListPage {
   protected readonly listPath = '/administration/templates';
@@ -18,7 +18,8 @@ export class TemplatesPage extends AdminListPage {
   readonly newTemplateButton: Locator;
   readonly nameInput: Locator;
   readonly tribuButton: Locator;
-  readonly contentAreas: Locator;
+  readonly subjectInput: Locator;
+  readonly contentEditor: Locator;
   readonly submitButton: Locator;
 
   constructor(page: Page) {
@@ -28,7 +29,10 @@ export class TemplatesPage extends AdminListPage {
     this.tribuButton = page.getByRole('button', {
       name: /sélectionner une ou plusieurs tribus/i,
     });
-    this.contentAreas = page.locator('textarea');
+    // Onglet « Version mail » (affiché par défaut). Deux champs de contenu sont requis
+    // pour activer « Valider template » : l'objet (textarea) ET le corps (contenteditable).
+    this.subjectInput = page.locator('textarea').first(); // Objet du mail
+    this.contentEditor = page.locator('[contenteditable="true"]').first(); // Template de mail
     this.submitButton = page.getByRole('button', { name: 'Valider template' });
   }
 
@@ -55,13 +59,12 @@ export class TemplatesPage extends AdminListPage {
     return label;
   }
 
-  /** Remplit toutes les zones de contenu visibles (onglet « Version mail »). */
+  /** Remplit l'objet (textarea) ET le corps « Template de mail » (contenteditable) —
+   *  les deux sont requis pour activer « Valider template ». */
   async fillContent(text: string): Promise<void> {
-    const count = await this.contentAreas.count();
-    for (let i = 0; i < count; i++) {
-      const area = this.contentAreas.nth(i);
-      if (await area.isVisible().catch(() => false)) await area.fill(text);
-    }
+    await this.subjectInput.fill(text);
+    await this.contentEditor.click();
+    await this.contentEditor.pressSequentially(text, { delay: 10 });
   }
 
   /** Soumet le formulaire et attend la redirection vers la liste. */
@@ -80,15 +83,10 @@ export class TemplatesPage extends AdminListPage {
     await this.nameInput.fill(current + suffix);
   }
 
-  /** Ajoute un suffixe à la fin de chaque zone de contenu visible (préremplie). */
+  /** Ajoute un suffixe à la fin du corps (éditeur contenteditable, prérempli en édition). */
   async appendToContent(suffix: string): Promise<void> {
-    const count = await this.contentAreas.count();
-    for (let i = 0; i < count; i++) {
-      const area = this.contentAreas.nth(i);
-      if (await area.isVisible().catch(() => false)) {
-        const current = await area.inputValue();
-        await area.fill(current + suffix);
-      }
-    }
+    await this.contentEditor.click();
+    await this.page.keyboard.press('Control+End');
+    await this.contentEditor.pressSequentially(suffix, { delay: 10 });
   }
 }

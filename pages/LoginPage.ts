@@ -10,7 +10,6 @@ import { fetchOtpFromEmail } from '../utils/email-otp';
  */
 export class LoginPage extends BasePage {
   // Page /auth du backoffice (avant Auth0)
-  readonly authLandingHeading: Locator;
   readonly signInWithAuth0Button: Locator;
 
   // Écrans Auth0
@@ -33,7 +32,6 @@ export class LoginPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.authLandingHeading = page.getByText('Connexion', { exact: true });
     this.signInWithAuth0Button = page.getByRole('button', {
       name: 'Se connecter avec Auth0',
     });

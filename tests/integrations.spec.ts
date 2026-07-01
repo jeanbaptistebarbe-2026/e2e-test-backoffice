@@ -12,10 +12,9 @@ test.describe('Integrations — administration (authentifié)', () => {
     // des cartes survient après un fetch async).
     await expect(integrations.cards.first()).toBeVisible();
 
-    // L'item Google est présent avec ses badges de scope.
+    // L'item Google est présent (titre) — test de chargement, sans supposer l'état
+    // de connexion (les badges de scope Calendar/Gmail n'existent que si connecté).
     await expect(integrations.googleCard).toBeVisible();
     await expect(integrations.googleCard.locator('[data-slot="card-title"]')).toContainText('Google');
-    await expect(integrations.googleCard.getByText('Calendar')).toBeVisible();
-    await expect(integrations.googleCard.getByText('Gmail')).toBeVisible();
   });
 });
