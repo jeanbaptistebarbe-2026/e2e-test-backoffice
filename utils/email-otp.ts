@@ -1,5 +1,6 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
+import { requireSecret } from './secrets';
 
 interface OtpOptions {
   email?: string;
@@ -38,9 +39,8 @@ function extractCode(text: string): string | null {
  * code avec des nombres présents dans les en-têtes bruts.
  */
 export async function fetchOtpFromEmail(options: OtpOptions = {}): Promise<string> {
-  const email =
-    options.email ?? process.env.GMAIL_USER ?? 'jean.baptiste.barbe@swapn.fr';
-  const appPassword = options.appPassword ?? process.env.GMAIL_APP_PASSWORD!;
+  const email = options.email ?? requireSecret('GMAIL_USER');
+  const appPassword = options.appPassword ?? requireSecret('GMAIL_APP_PASSWORD');
   const senderFilter =
     options.senderFilter ?? process.env.OTP_SENDER ?? 'no-reply@apps.tiime.fr';
   const timeoutMs = options.timeoutMs ?? 120_000;

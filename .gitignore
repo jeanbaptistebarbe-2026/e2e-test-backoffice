@@ -8,3 +8,6 @@ test-results/
 _*.mjs
 _*.png
 scratch/
+
+# Secrets en clair — ne JAMAIS committer
+secrets_e2e.yml

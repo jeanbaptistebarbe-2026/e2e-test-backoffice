@@ -2,6 +2,11 @@ import { test as base, expect, Browser } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { LoginPage } from '../pages/LoginPage';
+import { loadSecrets } from '../utils/secrets';
+
+// Déchiffre et injecte les secrets dans process.env dès le chargement du module
+// (importé par tous les specs) — fonctionne aussi sous SquashTM qui ignore la config.
+loadSecrets();
 
 /**
  * Base de test partagée par tous les specs.
@@ -137,7 +142,7 @@ export const test = baseTest.extend({
     // ~2 min de latence sur l'OTP), distinct du timeout de test. Indispensable car le
     // runner SquashTM ignore `timeout` de playwright.config.ts et plafonne à 30 s,
     // ce qui coupait le `setup` de `storageState` en plein login.
-    { timeout: 200_000 },
+    { scope: 'test', timeout: 200_000 },
   ],
 });
 

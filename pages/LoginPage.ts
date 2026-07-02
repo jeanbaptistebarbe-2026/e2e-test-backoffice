@@ -1,6 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 import { fetchOtpFromEmail } from '../utils/email-otp';
+import { requireSecret } from '../utils/secrets';
 
 /**
  * Page Object du login du backoffice Neo (qg.swapn.tech).
@@ -98,10 +99,9 @@ export class LoginPage extends BasePage {
    * Aucune dépendance à un téléphone : Auth0 envoie le code à l'adresse du compte.
    */
   async loginWithOtp(
-    // Défauts intégrés (même pattern que BASE_URL) car les variables d'env ne sont
-    // pas garanties côté SquashTM ; surchargés par AUTH_EMAIL/AUTH_PASSWORD si fournis.
-    email = process.env.AUTH_EMAIL ?? 'jean.baptiste.barbe@swapn.fr',
-    password = process.env.AUTH_PASSWORD ?? 'Jesuisunefee94!',
+    // Identifiants lus depuis les secrets chiffrés (ou .env local), jamais en dur.
+    email = requireSecret('AUTH_EMAIL'),
+    password = requireSecret('AUTH_PASSWORD'),
   ): Promise<void> {
     await this.goToLogin();
     await this.enterEmail(email);

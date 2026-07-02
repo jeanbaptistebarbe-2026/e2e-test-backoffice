@@ -1,15 +1,11 @@
 import { loggedOutTest as test, expect } from './fixtures';
 import { LoginPage } from '../pages/LoginPage';
+import { requireSecret } from '../utils/secrets';
 
-// Identifiants du compte de test. Défaut intégré au code (même pattern que
-// BASE_URL) car les variables d'environnement ne sont pas encore disponibles
-// côté SquashTM. Si AUTH_EMAIL/AUTH_PASSWORD sont fournis par l'environnement,
-// ils prennent le dessus.
-// TODO secrets : déplacer vers des variables d'environnement Squash dès que
-// possible — PUIS changer le mot de passe du compte de test (il restera dans
-// l'historique git).
-const AUTH_EMAIL = process.env.AUTH_EMAIL ?? 'jean.baptiste.barbe@swapn.fr';
-const AUTH_PASSWORD = process.env.AUTH_PASSWORD ?? 'Jesuisunefee94!';
+// Identifiants du compte de test : lus depuis les secrets chiffrés (ou un .env
+// local), jamais en dur dans le code. Cf. utils/secrets.ts.
+const AUTH_EMAIL = requireSecret('AUTH_EMAIL');
+const AUTH_PASSWORD = requireSecret('AUTH_PASSWORD');
 
 // Ces tests jouent le flux de login depuis zéro : `loggedOutTest` fournit déjà un
 // contexte vierge (pas d'état d'authentification).
