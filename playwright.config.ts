@@ -32,7 +32,10 @@ export default defineConfig({
   // Cible distante (preprod) : on borne le parallélisme local pour ne pas la
   // saturer (sinon chargements lents → timeouts intermittents).
   workers: process.env.CI ? 1 : 3,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // slack-reporter : poste une synthèse + captures + traces des échecs dans Slack.
+  // Il s'auto-désactive si les secrets Slack ne sont pas résolus (aucune clé fournie),
+  // donc un `npm test` nu ne notifie rien.
+  reporter: [['list'], ['html', { open: 'never' }], ['./reporters/slack-reporter.ts']],
   // Élevé car l'authentification (login + MFA e-mail) est faite à la volée dans une
   // fixture (cf. tests/fixtures.ts) et peut prendre jusqu'à ~2 min la première fois.
   timeout: 180_000,
