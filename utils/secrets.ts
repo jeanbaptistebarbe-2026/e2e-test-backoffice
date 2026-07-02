@@ -16,8 +16,13 @@ import crypto from 'crypto';
  *
  * Provenance de la clé, dans l'ordre :
  *   1. `E2E_SECRETS_KEY` (variable d'environnement dédiée)
- *   2. `PLAYWRIGHT_EXTRA_OPTIONS` contenant `--secrets-key=…` (cas SquashTM)
- *   3. argument de la commande locale `--key=…` / `--secrets-key=…`
+ *   2. `PLAYWRIGHT_EXTRA_OPTIONS` (cas SquashTM) : cette variable est AJOUTÉE à la
+ *      ligne de commande `playwright test`, donc elle ne peut contenir que de vraies
+ *      options Playwright. On fait porter la clé par `--grep-invert=<clé>` : option
+ *      valide et inoffensive (la clé ne matchant aucun titre de test, tous les tests
+ *      tournent). Les workers héritent de `process.env.PLAYWRIGHT_EXTRA_OPTIONS`, d'où
+ *      la clé est extraite.
+ *   3. argument de la commande locale `--key=…` / `--secrets-key=…` (via run-e2e.mjs)
  */
 
 const ENC_FILE = path.resolve(__dirname, '..', 'secrets_e2e.enc.yml');
@@ -41,10 +46,15 @@ function parseFlatYaml(content: string): Record<string, string> {
   return out;
 }
 
-/** Extrait la clé d'une chaîne du type `… --secrets-key=XXX …` (ou --key / E2E_SECRETS_KEY). */
+/**
+ * Extrait la clé d'une chaîne d'options. Porteurs reconnus :
+ *   - `--grep-invert=XXX` : porteur utilisé sous SquashTM (option Playwright valide)
+ *   - `--secrets-key=XXX` / `--key=XXX` : usage local (wrapper run-e2e.mjs)
+ *   - `E2E_SECRETS_KEY=XXX`
+ */
 function extractKey(source?: string): string | undefined {
   if (!source) return undefined;
-  const m = source.match(/(?:--secrets-key|--key|E2E_SECRETS_KEY)[=\s]+("[^"]+"|'[^']+'|\S+)/);
+  const m = source.match(/(?:--grep-invert|--secrets-key|--key|E2E_SECRETS_KEY)[=\s]+("[^"]+"|'[^']+'|\S+)/);
   return m ? m[1].replace(/^['"]|['"]$/g, '') : undefined;
 }
 
@@ -98,8 +108,8 @@ export function requireSecret(name: string): string {
   if (!value) {
     throw new Error(
       `Secret « ${name} » manquant. Fournir la clé de déchiffrement ` +
-        `(E2E_SECRETS_KEY, PLAYWRIGHT_EXTRA_OPTIONS « --secrets-key=… » sur Squash, ` +
-        `ou --key=… en local) ou définir la variable dans un .env local.`,
+        `(E2E_SECRETS_KEY ; PLAYWRIGHT_EXTRA_OPTIONS « --grep-invert=<clé> » sur Squash ; ` +
+        `ou --key=… en local via run-e2e.mjs) ou définir la variable dans un .env local.`,
     );
   }
   return value;
