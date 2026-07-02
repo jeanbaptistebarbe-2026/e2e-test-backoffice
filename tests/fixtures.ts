@@ -107,24 +107,56 @@ async function ensureAuthState(browser: Browser): Promise<string> {
   }
 }
 
-// Base commune : screenshot d'échec attaché au rapport (fonctionne local ET Squash).
-const baseTest = base.extend<{ autoScreenshotOnFailure: void }>({
-  autoScreenshotOnFailure: [
-    async ({ page }, use, testInfo) => {
-      // Le runner SquashTM ignore `timeout` de playwright.config.ts et applique son
-      // défaut (30 s), trop court pour la préprod distante. On relève le timeout du
-      // corps de test EN CODE pour ne pas dépendre d'une option CLI côté runner.
+// Base commune : timeout relevé + artefacts d'échec (capture + trace) écrits comme
+// FICHIERS dans le dossier d'artefacts du test (test-results/…), donc collectables par
+// la fonctionnalité « attachments » de SquashTM. Tout est fait EN CODE car le runner
+// ignore la config (reporter, use.trace, timeout).
+const baseTest = base.extend<{ autoArtifacts: void }>({
+  autoArtifacts: [
+    async ({ page, context }, use, testInfo) => {
+      // Le runner applique son timeout par défaut (30 s), trop court pour la préprod
+      // distante → on le relève en code.
       testInfo.setTimeout(120_000);
+
+      // Trace EN CODE (le runner ignore `use.trace`). Démarrage défensif : si une trace
+      // est déjà active (cas où le runner l'aurait activée), on ne la double pas.
+      let tracingOwned = false;
+      try {
+        await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+        tracingOwned = true;
+      } catch {
+        /* trace déjà démarrée ailleurs → on laisse faire */
+      }
+
       await use();
-      if (testInfo.status !== testInfo.expectedStatus) {
-        const screenshot = await page
-          .screenshot({ fullPage: true })
-          .catch(() => null); // page parfois déjà fermée (crash) → on n'échoue pas le teardown
-        if (screenshot) {
-          await testInfo.attach('screenshot-échec', {
-            body: screenshot,
-            contentType: 'image/png',
-          });
+
+      const failed = testInfo.status !== testInfo.expectedStatus;
+
+      // Trace conservée UNIQUEMENT sur échec, dans le dossier d'artefacts du test.
+      // Le .zip est autoportant → ouvrable sur https://trace.playwright.dev
+      if (tracingOwned) {
+        try {
+          const tracePath = testInfo.outputPath('trace.zip');
+          await context.tracing.stop(failed ? { path: tracePath } : {});
+          if (failed) {
+            await testInfo.attach('trace', { path: tracePath, contentType: 'application/zip' });
+          }
+        } catch {
+          /* contexte déjà fermé (crash) → on n'échoue pas le teardown */
+        }
+      }
+
+      // Capture d'écran d'échec : écrite comme FICHIER (collectable) + attachée au rapport.
+      if (failed) {
+        const shotPath = testInfo.outputPath('screenshot.png');
+        const ok = await page
+          .screenshot({ path: shotPath, fullPage: true })
+          .then(() => true)
+          .catch(() => false); // page parfois déjà fermée (crash)
+        if (ok) {
+          await testInfo
+            .attach('screenshot-échec', { path: shotPath, contentType: 'image/png' })
+            .catch(() => {});
         }
       }
     },
