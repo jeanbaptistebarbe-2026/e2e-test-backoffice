@@ -101,7 +101,7 @@ npm run test:headed
 │   ├── login.spec.ts          # flux de login Auth0 (logged-out)
 │   ├── signatures.spec.ts     # CRUD signatures
 │   ├── templates.spec.ts      # CRUD templates
-│   ├── collaborators.spec.ts  # liste + invitation
+│   ├── collaborators.spec.ts  # liste
 │   ├── integrations.spec.ts   # page intégrations
 │   ├── calendar.spec.ts       # calendrier (conditionné au SSO Google)
 │   └── smoke.spec.ts          # smoke authentifié

@@ -19,22 +19,4 @@ test.describe('Collaborators — liste (authentifié)', () => {
     // La liste est peuplée (au moins une ligne) — assertion web-first (auto-retry).
     await expect(collaborators.rows.first()).toBeVisible();
   });
-
-  test('inviter un collaborateur (email jetable, statut « Invité »)', async ({ page }) => {
-    const collaborators = new CollaboratorsPage(page);
-    // Email unique par run, sur le domaine @tiime.fr : l'app rejette l'invitation
-    // (la modale ne se ferme pas) si l'adresse n'est pas @tiime.fr. NB : pas de
-    // révocation possible dans l'UI → l'invitation en attente reste dans la liste.
-    const email = `e2e-${Date.now()}@tiime.fr`;
-
-    await collaborators.goToList();
-    await collaborators.openInvite();
-    await collaborators.invite(email, 'Collaborateur');
-
-    // Succès : l'invité apparaît dans la liste avec le statut « Invité ».
-    await collaborators.search(email);
-    const row = collaborators.rowByText(email);
-    await expect(row).toBeVisible({ timeout: 10_000 });
-    await expect(row).toContainText('Invité');
-  });
 });

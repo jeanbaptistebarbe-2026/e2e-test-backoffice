@@ -42,7 +42,7 @@ Aucune dépendance applicative : c'est un projet de test autonome qui attaque le
 │   ├── login.spec.ts          # Flux de login Auth0 (sans auth)
 │   ├── signatures.spec.ts     # CRUD signatures
 │   ├── templates.spec.ts      # CRUD templates
-│   ├── collaborators.spec.ts  # Liste + invitation
+│   ├── collaborators.spec.ts  # Liste
 │   ├── integrations.spec.ts   # Page intégrations
 │   ├── calendar.spec.ts       # Calendrier (conditionné au SSO Google)
 │   └── smoke.spec.ts          # Smoke test authentifié
@@ -52,7 +52,7 @@ Aucune dépendance applicative : c'est un projet de test autonome qui attaque le
 │   ├── LoginPage.ts           # Login Auth0 + bascule MFA e-mail
 │   ├── SignaturesPage.ts      # (étend AdminListPage)
 │   ├── TemplatesPage.ts       # (étend AdminListPage)
-│   ├── CollaboratorsPage.ts   # liste + modale d'invitation
+│   ├── CollaboratorsPage.ts   # liste
 │   ├── IntegrationsPage.ts    # cartes d'intégration + détecteur SSO
 │   ├── CalendarPage.ts
 │   └── HomePage.ts
@@ -85,7 +85,7 @@ SquashTM, voir §4) mais **en code**, dans une fixture :
 
 - **Frontend testé** : `https://qg.swapn.tech/` (le backoffice Neo).
 - **Backend API** : `https://neo.preprod.tiime.tech` (environnement de **préprod** — c'est là que partent
-  les POST/PATCH/DELETE de création de signatures, templates, invitations…).
+  les POST/PATCH/DELETE de création de signatures, templates…).
 - **Auth** : **Auth0 Tiime** (`auth0.tiime.fr`), le même IdP que les autres produits Tiime.
 - **Exécution locale** : `npm test` (voir §8).
 - **Exécution CI / QA** : **SquashTM Tiime** (orchestrateur « Squash AUTOM », tags `linux, playwright`).
@@ -165,7 +165,7 @@ par e-mail (infra Auth0) et est lu par IMAP. Variables nécessaires : `GMAIL_USE
 | **Smoke** | `smoke.spec.ts` (1) | le backoffice charge après authentification | oui |
 | **Signatures** | `signatures.spec.ts` (2) | pages liste + « mes signatures » ; **cycle de vie complet** : création → édition → suppression | oui |
 | **Templates** | `templates.spec.ts` (2) | liste ; **cycle de vie complet** : création → édition → suppression | oui |
-| **Collaborateurs** | `collaborators.spec.ts` (2) | liste chargée + colonnes + peuplée ; **invitation** d'un collaborateur (statut « Invité ») | oui |
+| **Collaborateurs** | `collaborators.spec.ts` (1) | liste chargée + colonnes + peuplée | oui |
 | **Intégrations** | `integrations.spec.ts` (1) | la page charge ses items (carte « Google » SSO + scopes Calendar/Gmail) | oui |
 | **Calendrier** | `calendar.spec.ts` (1) | le calendrier charge ses événements — **conditionné** au SSO Google actif | oui |
 
@@ -241,8 +241,9 @@ La cible est une **préprod distante partagée** : latence variable. Mesures (lo
 
 - **OTP e-mail parfois lent** (>120 s) → `setup` occasionnellement « flaky » (rattrapé par retry).
   Cible idéale : **TOTP** (à activer côté Auth0 Tiime) pour supprimer la dépendance e-mail.
-- **Invitation collaborateur non nettoyable** : la liste n'offre pas de révocation UI → les invitations
-  de test (email jetable `+e2e-…`) s'accumulent. Acceptable, mais à surveiller.
+- **Invitation collaborateur non couverte** : le flux d'invitation n'est pas testé. Il n'est pas
+  self-cleaning (aucune révocation dans l'UI) → chaque run laisserait une invitation résiduelle dans la
+  liste. À reprendre si une révocation (UI ou API) devient disponible.
 - **Secrets côté Squash** : `GMAIL_APP_PASSWORD` / `AUTH_PASSWORD` sont aujourd'hui à fournir en clair au
   runner. Piste : **SOPS** (déjà utilisé côté back Tiime) pour des secrets chiffrés versionnés.
 - **Un seul navigateur** (Chromium) : on pourrait étendre à Firefox/WebKit si besoin.
