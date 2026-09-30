@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures';
 import { IntegrationsPage } from '../pages/IntegrationsPage';
 
-test.describe('Integrations — administration (authentifié)', { tag: ['@settings', '@readonly'] }, () => {
+test.describe('Integrations — administration (authentifié)', { tag: ['@settings', '@readonly', '@role-admin'] }, () => {
   test('la page intégrations charge ses items (carte SSO Google)', { tag: ['@TC-SET-01', '@p0', '@smoke'] }, async ({ page }) => {
     const integrations = new IntegrationsPage(page);
     await integrations.goTo();

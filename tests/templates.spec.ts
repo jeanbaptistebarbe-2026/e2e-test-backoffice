@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures';
 import { TemplatesPage } from '../pages/TemplatesPage';
 
-test.describe('Templates — administration (authentifié)', { tag: ['@admin'] }, () => {
+test.describe('Templates — administration (authentifié)', { tag: ['@admin', '@role-admin'] }, () => {
   test('la liste des templates se charge', { tag: ['@TC-ADM-TPL-01', '@p0', '@smoke', '@readonly'] }, async ({ page }) => {
     const templates = new TemplatesPage(page);
     await templates.goToList();

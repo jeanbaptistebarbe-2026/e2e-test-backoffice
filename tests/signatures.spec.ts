@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures';
 import { SignaturesPage } from '../pages/SignaturesPage';
 
-test.describe('Signatures — administration (authentifié)', { tag: ['@admin'] }, () => {
+test.describe('Signatures — administration (authentifié)', { tag: ['@admin', '@role-admin'] }, () => {
   test('les deux pages de signatures existent et sont atteignables', { tag: ['@TC-ADM-SIG-01', '@p0', '@smoke', '@readonly'] }, async ({ page }) => {
     const sig = new SignaturesPage(page);
 

@@ -69,6 +69,11 @@ export class QgApi {
     return this.check(await this.ctx.delete(path), `DELETE ${path}`);
   }
 
+  /** Collaborateur connecté (`GET /collaborators/me`) : rôle réel du compte de test. */
+  async me(): Promise<{ id: string; role: string; status: string }> {
+    return this.get('/collaborators/me');
+  }
+
   // ─── Remises à l'état ──────────────────────────────────────────────────────
 
   /** Remet un ticket FDE dans un statut donné (défaut « À traiter »). */

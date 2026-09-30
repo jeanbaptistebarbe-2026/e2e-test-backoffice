@@ -1,4 +1,4 @@
-import { test as base, expect, Browser } from '@playwright/test';
+import { test as base, expect, Browser, BrowserContext, Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { LoginPage } from '../pages/LoginPage';
@@ -58,33 +58,57 @@ function tryAcquireLock(role: Role): boolean {
   }
 }
 
+/** Joue le login complet (Auth0 + MFA e-mail) du rôle dans la page donnée. */
+async function loginInto(page: Page, role: Role): Promise<void> {
+  const creds = credentialsFor(role);
+  await new LoginPage(page).loginWithOtp(creds.email, creds.password, {
+    user: creds.imapUser,
+    password: creds.imapPassword,
+  });
+
+  // Gestion défensive d'une éventuelle page CGU après la connexion.
+  const cgu = page.locator('#cgu-checkbox');
+  const cguAppeared = await cgu
+    .waitFor({ state: 'visible', timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (cguAppeared) {
+    await cgu.click();
+    await page.locator('#privacy-checkbox').click();
+    await page.getByRole('button', { name: 'Valider' }).click();
+  }
+}
+
 async function performLogin(browser: Browser, role: Role): Promise<void> {
   const context = await browser.newContext();
   try {
-    const page = await context.newPage();
-    const creds = credentialsFor(role);
-    await new LoginPage(page).loginWithOtp(creds.email, creds.password, {
-      user: creds.imapUser,
-      password: creds.imapPassword,
-    });
-
-    // Gestion défensive d'une éventuelle page CGU après la connexion.
-    const cgu = page.locator('#cgu-checkbox');
-    const cguAppeared = await cgu
-      .waitFor({ state: 'visible', timeout: 5_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (cguAppeared) {
-      await cgu.click();
-      await page.locator('#privacy-checkbox').click();
-      await page.getByRole('button', { name: 'Valider' }).click();
-    }
-
+    await loginInto(await context.newPage(), role);
     await context.storageState({ path: authFile(role) });
   } finally {
     await context.close();
   }
 }
+
+/**
+ * Attend le verrou de login du rôle. Un seul login par compte à la fois : deux
+ * logins simultanés du même compte recevraient deux codes MFA qui pourraient se
+ * croiser. Renvoie `'fresh'` si `useFreshState` et qu'un autre worker a produit
+ * entre-temps un état réutilisable (le verrou n'est alors PAS pris).
+ */
+async function acquireLoginLock(role: Role, useFreshState: boolean): Promise<'held' | 'fresh'> {
+  fs.mkdirSync(AUTH_DIR, { recursive: true });
+  const deadline = Date.now() + WAIT_FOR_STATE_MS;
+  while (Date.now() < deadline) {
+    if (useFreshState && stateIsFresh(role)) return 'fresh'; // un autre worker a produit l'état
+    if (tryAcquireLock(role)) return 'held'; // …ou le détenteur a abandonné
+    await sleep(1000);
+  }
+  fs.rmSync(lockFile(role), { force: true }); // dernier recours : verrou bloqué
+  tryAcquireLock(role);
+  return 'held';
+}
+
+const releaseLoginLock = (role: Role) => fs.rmSync(lockFile(role), { force: true });
 
 /**
  * Garantit un état d'authentification réutilisable pour un rôle et renvoie le chemin
@@ -94,29 +118,34 @@ async function performLogin(browser: Browser, role: Role): Promise<void> {
  * produit). Remplace l'ancien projet `setup` + `dependencies` de la config.
  */
 export async function ensureAuthState(browser: Browser, role: Role = 'admin'): Promise<string> {
-  fs.mkdirSync(AUTH_DIR, { recursive: true });
   const file = authFile(role);
   if (stateIsFresh(role)) return file;
-
-  let held = tryAcquireLock(role);
-  if (!held) {
-    const deadline = Date.now() + WAIT_FOR_STATE_MS;
-    while (!held && Date.now() < deadline) {
-      await sleep(1000);
-      if (stateIsFresh(role)) return file; // un autre worker a produit l'état
-      held = tryAcquireLock(role); // …ou le détenteur a abandonné
-    }
-    if (!held) {
-      fs.rmSync(lockFile(role), { force: true }); // dernier recours : verrou bloqué
-      held = tryAcquireLock(role);
-    }
-  }
-
+  if ((await acquireLoginLock(role, true)) === 'fresh') return file;
   try {
     await performLogin(browser, role);
     return file;
   } finally {
-    if (held) fs.rmSync(lockFile(role), { force: true });
+    releaseLoginLock(role);
+  }
+}
+
+/**
+ * Contexte navigateur avec une session NEUVE et PRIVÉE (login dédié, jamais le
+ * storageState partagé). Pour les tests qui invalident la session, comme la
+ * déconnexion : `POST /auth/logout` révoque le refresh token, ce qui casserait les
+ * autres workers s'ils partageaient la même session. À fermer par l'appelant.
+ */
+export async function freshLoggedInContext(browser: Browser, role: Role = 'admin'): Promise<BrowserContext> {
+  const context = await browser.newContext({ locale: 'fr-FR', timezoneId: 'Europe/Paris' });
+  await acquireLoginLock(role, false);
+  try {
+    await loginInto(await context.newPage(), role);
+    return context;
+  } catch (e) {
+    await context.close();
+    throw e;
+  } finally {
+    releaseLoginLock(role);
   }
 }
 

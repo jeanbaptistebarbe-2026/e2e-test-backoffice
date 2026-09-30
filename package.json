@@ -12,6 +12,8 @@
     "test:readonly": "playwright test --grep \"@readonly\" --grep-invert \"@quarantine\"",
     "test:write": "playwright test --grep \"@write\" --grep-invert \"@quarantine\"",
     "test:auth": "playwright test --grep \"@auth\"",
+    "test:admin": "playwright test --grep \"@role-admin\" --grep-invert \"@quarantine\"",
+    "test:bpo": "playwright test --grep \"@role-bpo\" --grep-invert \"@quarantine\"",
     "test:grep": "playwright test --grep",
     "test:key": "node scripts/run-e2e.mjs",
     "secrets:encrypt": "node scripts/secrets-encrypt.mjs",

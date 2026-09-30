@@ -24,19 +24,32 @@ const API_HOST = /api\.preprod\.swapn\.tech/;
 /**
  * Bruit connu, jamais signalé :
  *   - « Failed to load resource » : doublon console des réponses HTTP (déjà suivies) ;
- *   - avertissements Radix sur les boîtes de dialogue sans description (ANO-16).
+ *   - avertissements d'accessibilité Radix sur les boîtes de dialogue sans titre ou
+ *     sans description (ANO-16) : réels mais connus, suivis à part.
  */
 const IGNORED_CONSOLE: RegExp[] = [
   /Failed to load resource/i,
   /Missing `Description` or `aria-describedby/i,
+  /`DialogContent` requires a `DialogTitle`/i,
 ];
 
 export class PageHealth {
   private readonly issues: HealthIssue[] = [];
+  /** Requêtes vers l'API QG en cours (WebSockets exclus : ce ne sont pas des `request`). */
+  private pending = 0;
+  private lastActivity = Date.now();
   /** Motifs tolérés en plus du bruit connu, ajoutés par un test (`allow`). */
   private readonly allowed: RegExp[] = [];
 
   constructor(page: Page) {
+    const track = (delta: number) => (req: { url(): string }) => {
+      if (!API_HOST.test(req.url())) return;
+      this.pending = Math.max(0, this.pending + delta);
+      this.lastActivity = Date.now();
+    };
+    page.on('request', track(+1));
+    page.on('requestfinished', track(-1));
+    page.on('requestfailed', track(-1));
     page.on('pageerror', (err) => this.push({ kind: 'pageerror', message: err.message }));
     page.on('console', (msg) => {
       if (msg.type() !== 'error') return;
@@ -73,6 +86,20 @@ export class PageHealth {
   /** Oublie les problèmes relevés jusqu'ici (ex. après une navigation préparatoire). */
   reset(): void {
     this.issues.length = 0;
+  }
+
+  /**
+   * Attend que l'API QG soit au repos (aucune requête en cours depuis `quietMs`),
+   * borné par `timeoutMs`. Une réponse 5xx peut arriver APRÈS l'affichage du repère de
+   * la page ; sans cette attente, elle échapperait à `expectClean`. Ciblé sur l'API
+   * (et non `networkidle`, proscrit : les WebSockets et S3 le rendent non déterministe).
+   */
+  async settle(timeoutMs = 8_000, quietMs = 750): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (this.pending === 0 && Date.now() - this.lastActivity >= quietMs) return;
+      await new Promise((r) => setTimeout(r, 100));
+    }
   }
 
   /** Échoue si la page a levé une erreur JS, loggé une erreur ou reçu un 5xx de l'API. */

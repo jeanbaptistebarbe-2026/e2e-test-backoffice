@@ -43,3 +43,17 @@ export function credentialsFor(role: Role): RoleCredentials {
     imapPassword: requireSecret('GMAIL_APP_PASSWORD'),
   };
 }
+
+/**
+ * Indique si les identifiants d'un rôle sont renseignés. Sert à SAUTER (skip) les
+ * tests d'un rôle dont le compte n'existe pas encore (ex. BPO en cours de création),
+ * plutôt que de les faire échouer sur un secret manquant.
+ */
+export function roleAvailable(role: Role): boolean {
+  try {
+    credentialsFor(role);
+    return true;
+  } catch {
+    return false;
+  }
+}
