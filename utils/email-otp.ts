@@ -55,7 +55,9 @@ async function waitForMail<T>(
   notFoundLabel: string,
 ): Promise<T> {
   const email = options.email ?? requireSecret('GMAIL_USER');
-  const appPassword = options.appPassword ?? requireSecret('GMAIL_APP_PASSWORD');
+  // Google affiche le mot de passe d'application par groupes (« abcd efgh … ») :
+  // on retire les espaces, souvent recopiés tels quels dans les secrets.
+  const appPassword = (options.appPassword ?? requireSecret('GMAIL_APP_PASSWORD')).replace(/\s+/g, '');
   const timeoutMs = options.timeoutMs ?? 120_000;
   const pollIntervalMs = options.pollIntervalMs ?? 3_000;
   const sentAfter = options.sentAfter ?? new Date();
