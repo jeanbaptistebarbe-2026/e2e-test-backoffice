@@ -89,6 +89,11 @@ export class QgApi {
     await this.post(`/companies/${companyId}/tickets/${ticketId}/assign`, { collaboratorId: null });
   }
 
+  /** Archive une conversation pour l'utilisateur courant (la retire d'Envoyés / Ouvert). */
+  async archiveThread(threadId: string): Promise<void> {
+    await this.post(`/thread-archives/${threadId}`);
+  }
+
   async deleteDraft(draftId: string): Promise<void> {
     await this.delete(`/drafts/${draftId}`);
   }

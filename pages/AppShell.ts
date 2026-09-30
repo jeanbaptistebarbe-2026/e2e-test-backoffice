@@ -90,6 +90,11 @@ export class AppShell extends BasePage {
     ).toBeVisible();
   }
 
+  /** Nom complet de l'utilisateur connecté (nom accessible de l'avatar du rail). */
+  async currentUserName(): Promise<string> {
+    return (await this.rail.getByRole('button').last().getAttribute('aria-label')) ?? '';
+  }
+
   /** Menu de l'avatar (dernier bouton du rail) → « Déconnexion ». */
   async logout(): Promise<void> {
     await this.rail.getByRole('button').last().click();
