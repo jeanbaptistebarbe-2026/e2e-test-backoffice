@@ -40,6 +40,8 @@ import crypto from 'crypto';
  */
 
 const ENC_FILE = path.resolve(__dirname, '..', 'secrets_e2e.enc.yml');
+/** Source en clair, LOCALE uniquement (gitignorée, donc absente sur Squash/CI). */
+const PLAIN_FILE = path.resolve(__dirname, '..', 'secrets_e2e.yml');
 let loaded = false;
 
 /** Parse un YAML plat `CLE: valeur` (commentaires `#` et lignes vides ignorés). */
@@ -125,13 +127,23 @@ function decryptValue(stored: string, passphrase: string): string {
 }
 
 /**
- * Déchiffre `secrets_e2e.enc.yml` avec la clé résolue et peuple `process.env`
- * (sans écraser l'existant). No-op si aucune clé n'est fournie (dev local via `.env`)
- * ou si le fichier chiffré est absent. Idempotent (une fois par process/worker).
+ * Peuple `process.env` avec les secrets. Idempotent (une fois par process/worker).
+ *
+ * 1. `secrets_e2e.yml` (clair, local) s'il existe : fichier de configuration de
+ *    référence en local, ses valeurs NON VIDES **priment sur `.env`** — pour qu'une
+ *    modification y soit prise en compte sans rechiffrer ni resynchroniser `.env`.
+ *    Absent sur Squash/CI (gitignoré), donc sans effet là-bas.
+ * 2. `secrets_e2e.enc.yml` déchiffré avec la clé résolue, sans écraser l'existant.
+ *    No-op si aucune clé n'est fournie ou si le fichier chiffré est absent.
  */
 export function loadSecrets(): void {
   if (loaded) return;
   loaded = true;
+  if (fs.existsSync(PLAIN_FILE)) {
+    for (const [name, value] of Object.entries(parseFlatYaml(fs.readFileSync(PLAIN_FILE, 'utf8')))) {
+      if (value) process.env[name] = value;
+    }
+  }
   const key = resolveSecretsKey();
   if (!key || !fs.existsSync(ENC_FILE)) return;
   const entries = parseFlatYaml(fs.readFileSync(ENC_FILE, 'utf8'));
