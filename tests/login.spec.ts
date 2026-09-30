@@ -15,34 +15,9 @@ const authPassword = () => requireSecret('AUTH_PASSWORD');
 // Ces tests jouent le flux de login depuis zéro : `loggedOutTest` fournit déjà un
 // contexte vierge (pas d'état d'authentification).
 
-test.describe('Login — page /auth du backoffice', { tag: ['@auth', '@readonly'] }, () => {
-  let login: LoginPage;
-
-  test.beforeEach(async ({ page }) => {
-    login = new LoginPage(page);
-    await login.goToAuthLanding();
-  });
-
-  test(
-    'affiche la page de connexion Neo avec le bouton Auth0',
-    { tag: ['@TC-AUTH-UI-01', '@p1'] },
-    async ({ page }) => {
-      await expect(page).toHaveURL(/qg\.swapn\.tech\/auth/);
-      await expect(login.signInWithAuth0Button).toBeVisible();
-    },
-  );
-
-  test(
-    'le bouton Auth0 redirige vers le login Auth0',
-    { tag: ['@TC-AUTH-UI-02', '@p1'] },
-    async ({ page }) => {
-      await login.signInWithAuth0Button.click();
-      await expect(page).toHaveURL(/auth0\.tiime\.fr\/u\/login\/identifier/, {
-        timeout: 15_000,
-      });
-    },
-  );
-});
+// TC-AUTH-UI-01/02 (bouton « Se connecter avec Auth0 » de /auth) retirés : /auth
+// redirige désormais automatiquement vers Auth0. Remplacés par TC-AUTH-12
+// (tests/auth/session.spec.ts).
 
 test.describe('Login — écran email', { tag: ['@auth', '@readonly'] }, () => {
   let login: LoginPage;

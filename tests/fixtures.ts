@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { LoginPage } from '../pages/LoginPage';
 import { loadSecrets } from '../utils/secrets';
+import { credentialsFor, type Role } from '../utils/roles';
+import { PageHealth } from '../utils/page-health';
 
 // Déchiffre et injecte les secrets dans process.env dès le chargement du module
 // (importé par tous les specs) — fonctionne aussi sous SquashTM qui ignore la config.
@@ -18,43 +20,53 @@ loadSecrets();
  *
  * Deux variantes exportées :
  *   - `test`          → authentifié (réutilise une session obtenue une seule fois).
+ *                       Rôle `admin` par défaut ; `test.use({ role: 'bpo' })` pour le BPO.
  *   - `loggedOutTest` → contexte vierge (pour tester le flux de login lui-même).
+ *
+ * Fixture `health` (auto) : collecte erreurs JS, console et 5xx de l'API ; jointe au
+ * rapport, et assertable par `health.expectClean()` (cf. utils/page-health.ts).
  */
 
 const AUTH_DIR = path.resolve(__dirname, '..', 'playwright', '.auth');
-const AUTH_FILE = path.join(AUTH_DIR, 'user.json');
-const LOCK_FILE = path.join(AUTH_DIR, 'user.lock');
+/** Fichier storageState d'un rôle (une session en cache par rôle). */
+export const authFile = (role: Role) => path.join(AUTH_DIR, `${role}.json`);
+const lockFile = (role: Role) => path.join(AUTH_DIR, `${role}.lock`);
 const STATE_MAX_AGE_MS = 10 * 60 * 1000; // on réutilise un état de moins de 10 min
 const LOCK_STALE_MS = 5 * 60 * 1000; // on vole un verrou de plus de 5 min (run crashé)
 const WAIT_FOR_STATE_MS = 180 * 1000; // attente max qu'un autre worker produise l'état
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function stateIsFresh(): boolean {
+function stateIsFresh(role: Role): boolean {
   try {
-    return Date.now() - fs.statSync(AUTH_FILE).mtimeMs < STATE_MAX_AGE_MS;
+    return Date.now() - fs.statSync(authFile(role)).mtimeMs < STATE_MAX_AGE_MS;
   } catch {
     return false;
   }
 }
 
-function tryAcquireLock(): boolean {
+function tryAcquireLock(role: Role): boolean {
+  const lock = lockFile(role);
   try {
-    if (fs.existsSync(LOCK_FILE) && Date.now() - fs.statSync(LOCK_FILE).mtimeMs > LOCK_STALE_MS) {
-      fs.rmSync(LOCK_FILE, { force: true });
+    if (fs.existsSync(lock) && Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) {
+      fs.rmSync(lock, { force: true });
     }
-    fs.writeFileSync(LOCK_FILE, String(process.pid), { flag: 'wx' }); // échoue si déjà présent
+    fs.writeFileSync(lock, String(process.pid), { flag: 'wx' }); // échoue si déjà présent
     return true;
   } catch {
     return false;
   }
 }
 
-async function performLogin(browser: Browser): Promise<void> {
+async function performLogin(browser: Browser, role: Role): Promise<void> {
   const context = await browser.newContext();
   try {
     const page = await context.newPage();
-    await new LoginPage(page).loginWithOtp();
+    const creds = credentialsFor(role);
+    await new LoginPage(page).loginWithOtp(creds.email, creds.password, {
+      user: creds.imapUser,
+      password: creds.imapPassword,
+    });
 
     // Gestion défensive d'une éventuelle page CGU après la connexion.
     const cgu = page.locator('#cgu-checkbox');
@@ -68,42 +80,43 @@ async function performLogin(browser: Browser): Promise<void> {
       await page.getByRole('button', { name: 'Valider' }).click();
     }
 
-    await context.storageState({ path: AUTH_FILE });
+    await context.storageState({ path: authFile(role) });
   } finally {
     await context.close();
   }
 }
 
 /**
- * Garantit un état d'authentification réutilisable et renvoie le chemin du fichier
- * `storageState`. Se connecte **une seule fois** (login + MFA e-mail), met l'état en
- * cache sur disque, et sérialise via un verrou fichier pour qu'un seul worker se
- * connecte à la fois (les autres réutilisent le fichier produit). Remplace l'ancien
- * projet `setup` + `dependencies` de la config.
+ * Garantit un état d'authentification réutilisable pour un rôle et renvoie le chemin
+ * du fichier `storageState`. Se connecte **une seule fois** par rôle (login + MFA
+ * e-mail), met l'état en cache sur disque, et sérialise via un verrou fichier pour
+ * qu'un seul worker se connecte à la fois (les autres réutilisent le fichier
+ * produit). Remplace l'ancien projet `setup` + `dependencies` de la config.
  */
-async function ensureAuthState(browser: Browser): Promise<string> {
+export async function ensureAuthState(browser: Browser, role: Role = 'admin'): Promise<string> {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
-  if (stateIsFresh()) return AUTH_FILE;
+  const file = authFile(role);
+  if (stateIsFresh(role)) return file;
 
-  let held = tryAcquireLock();
+  let held = tryAcquireLock(role);
   if (!held) {
     const deadline = Date.now() + WAIT_FOR_STATE_MS;
     while (!held && Date.now() < deadline) {
       await sleep(1000);
-      if (stateIsFresh()) return AUTH_FILE; // un autre worker a produit l'état
-      held = tryAcquireLock(); // …ou le détenteur a abandonné
+      if (stateIsFresh(role)) return file; // un autre worker a produit l'état
+      held = tryAcquireLock(role); // …ou le détenteur a abandonné
     }
     if (!held) {
-      fs.rmSync(LOCK_FILE, { force: true }); // dernier recours : verrou bloqué
-      held = tryAcquireLock();
+      fs.rmSync(lockFile(role), { force: true }); // dernier recours : verrou bloqué
+      held = tryAcquireLock(role);
     }
   }
 
   try {
-    await performLogin(browser);
-    return AUTH_FILE;
+    await performLogin(browser, role);
+    return file;
   } finally {
-    if (held) fs.rmSync(LOCK_FILE, { force: true });
+    if (held) fs.rmSync(lockFile(role), { force: true });
   }
 }
 
@@ -111,7 +124,25 @@ async function ensureAuthState(browser: Browser): Promise<string> {
 // FICHIERS dans le dossier d'artefacts du test (test-results/…), donc collectables par
 // la fonctionnalité « attachments » de SquashTM. Tout est fait EN CODE car le runner
 // ignore la config (reporter, use.trace, timeout).
-const baseTest = base.extend<{ autoArtifacts: void }>({
+const baseTest = base.extend<{ autoArtifacts: void; health: PageHealth }>({
+  // Contexte navigateur français, fixé EN CODE (le runner ignore `use` de la config) :
+  // dates relatives, formats `dd/MM` et préréglages de snooze en dépendent.
+  locale: async ({}, use) => {
+    await use('fr-FR');
+  },
+  timezoneId: async ({}, use) => {
+    await use('Europe/Paris');
+  },
+
+  health: [
+    async ({ page }, use, testInfo) => {
+      const health = new PageHealth(page);
+      await use(health);
+      await health.attachTo(testInfo);
+    },
+    { auto: true },
+  ],
+
   autoArtifacts: [
     async ({ page, context }, use, testInfo) => {
       // Le runner applique son timeout par défaut (30 s), trop court pour la préprod
@@ -164,11 +195,15 @@ const baseTest = base.extend<{ autoArtifacts: void }>({
   ],
 });
 
-/** Test authentifié : injecte une session obtenue/mise en cache via `ensureAuthState`. */
-export const test = baseTest.extend({
+/**
+ * Test authentifié : injecte la session du rôle (`role`, défaut `admin`), obtenue et
+ * mise en cache via `ensureAuthState`. Changer de rôle : `test.use({ role: 'bpo' })`.
+ */
+export const test = baseTest.extend<{ role: Role }>({
+  role: ['admin', { option: true }],
   storageState: [
-    async ({ browser }, use) => {
-      await use(await ensureAuthState(browser));
+    async ({ browser, role }, use) => {
+      await use(await ensureAuthState(browser, role));
     },
     // Timeout DÉDIÉ à la mise en place de l'auth (login + MFA e-mail Auth0, jusqu'à
     // ~2 min de latence sur l'OTP), distinct du timeout de test. Indispensable car le

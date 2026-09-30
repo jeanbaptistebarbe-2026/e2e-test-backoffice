@@ -5,14 +5,11 @@ import { requireSecret } from '../utils/secrets';
 
 /**
  * Page Object du login du backoffice Neo (qg.swapn.tech).
- * Flux : page /auth (bouton "Se connecter avec Auth0") → écran identifiant Auth0
- *        → écran mot de passe → bascule sur le facteur MFA « E-mail » → code lu en
- *        IMAP → retour backoffice.
+ * Flux : route protégée sans session → `/auth` (redirection automatique, sans
+ *        bouton) → écran identifiant Auth0 → écran mot de passe → bascule sur le
+ *        facteur MFA « E-mail » → code lu en IMAP → `/auth/callback` → backoffice.
  */
 export class LoginPage extends BasePage {
-  // Page /auth du backoffice (avant Auth0)
-  readonly signInWithAuth0Button: Locator;
-
   // Écrans Auth0
   readonly usernameInput: Locator;
   readonly emailSubmitButton: Locator;
@@ -33,10 +30,6 @@ export class LoginPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.signInWithAuth0Button = page.getByRole('button', {
-      name: 'Se connecter avec Auth0',
-    });
-
     this.usernameInput = page.locator('input#username');
     this.emailSubmitButton = page.locator('button._button-login-id');
     this.passwordInput = page.locator('input#password');
@@ -53,28 +46,15 @@ export class LoginPage extends BasePage {
     this.wrongPasswordError = page.locator('#error-element-password');
   }
 
-  /** Va sur le backoffice et attend l'affichage de la page /auth (bouton Auth0). */
-  async goToAuthLanding(): Promise<void> {
-    await this.goto('/');
-    await this.page.waitForURL('**/auth**', { timeout: 15_000 });
-    await expect(this.signInWithAuth0Button).toBeEnabled({ timeout: 15_000 });
-  }
-
   /**
-   * Depuis la page /auth, lance Auth0 et attend l'écran identifiant.
-   *
-   * Le clic est auto-réessayé : à cause de l'hydratation React, le bouton peut être
-   * visible et actif avant que son handler ne soit attaché — un premier clic est
-   * alors silencieusement avalé. On réessaie jusqu'à ce que la navigation parte.
-   * (Remède au `waitForLoadState('networkidle')` qui traînait ici : interdit dans ce
-   * repo, cf. docs/RAPPORT-E2E.md §7, et de toute façon non déterministe.)
+   * Ouvre le backoffice sans session et attend l'écran identifiant Auth0.
+   * `/auth` initie la connexion tout seul (`GET /auth/login` puis redirection vers
+   * l'URL Auth0) : il n'y a plus de bouton à cliquer.
    */
-  async goToLogin(): Promise<void> {
-    await this.goToAuthLanding();
-    await expect(async () => {
-      await this.signInWithAuth0Button.click({ timeout: 5_000 });
-      await this.page.waitForURL('**/u/login/identifier**', { timeout: 8_000 });
-    }).toPass({ timeout: 45_000 });
+  async goToLogin(path = '/'): Promise<void> {
+    await this.goto(path);
+    await this.page.waitForURL('**/u/login/identifier**', { timeout: 30_000 });
+    await expect(this.usernameInput).toBeVisible({ timeout: 15_000 });
   }
 
   async fillEmail(email: string): Promise<void> {
@@ -109,6 +89,8 @@ export class LoginPage extends BasePage {
     // Identifiants lus depuis les secrets chiffrés (ou .env local), jamais en dur.
     email = requireSecret('AUTH_EMAIL'),
     password = requireSecret('AUTH_PASSWORD'),
+    // Boîte IMAP où lire le code (défaut : GMAIL_USER / GMAIL_APP_PASSWORD).
+    imap: { user?: string; password?: string } = {},
   ): Promise<void> {
     await this.goToLogin();
     await this.enterEmail(email);
@@ -125,7 +107,14 @@ export class LoginPage extends BasePage {
     await this.page.waitForURL(/mfa-email-challenge/, { timeout: 15_000 });
 
     await this.otpInput.waitFor({ state: 'visible', timeout: 15_000 });
-    const otp = await fetchOtpFromEmail({ sentAfter: beforeOtp, timeoutMs: 120_000 });
+    const otp = await fetchOtpFromEmail({
+      sentAfter: beforeOtp,
+      timeoutMs: 120_000,
+      email: imap.user,
+      appPassword: imap.password,
+      // Filtre par destinataire : deux comptes peuvent partager la même boîte.
+      recipient: email,
+    });
     await this.otpInput.fill(otp);
     await this.continueButton.click();
 
