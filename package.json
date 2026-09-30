@@ -4,10 +4,15 @@
   "description": "Tests E2E Playwright pour le backoffice Swapn (qg.swapn.tech)",
   "private": true,
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:login": "playwright test login.spec",
-    "test:smoke": "playwright test smoke.spec",
+    "test:smoke": "playwright test --grep \"@smoke\"",
+    "test:p0": "playwright test --grep \"@p0\"",
+    "test:readonly": "playwright test --grep \"@readonly\" --grep-invert \"@quarantine\"",
+    "test:write": "playwright test --grep \"@write\" --grep-invert \"@quarantine\"",
+    "test:auth": "playwright test --grep \"@auth\"",
+    "test:grep": "playwright test --grep",
     "test:key": "node scripts/run-e2e.mjs",
     "secrets:encrypt": "node scripts/secrets-encrypt.mjs",
     "report": "playwright show-report"
@@ -17,7 +22,8 @@
     "@slack/web-api": "^7.18.0",
     "@types/mailparser": "^3.4.6",
     "@types/node": "^25.5.0",
-    "dotenv": "^17.4.0"
+    "dotenv": "^17.4.0",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "imapflow": "^1.3.1",

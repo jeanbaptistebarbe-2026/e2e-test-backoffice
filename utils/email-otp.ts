@@ -1,5 +1,5 @@
 import { ImapFlow } from 'imapflow';
-import { simpleParser } from 'mailparser';
+import { simpleParser, type ParsedMail } from 'mailparser';
 import { requireSecret } from './secrets';
 
 interface OtpOptions {
@@ -56,7 +56,25 @@ export async function fetchOtpFromEmail(options: OtpOptions = {}): Promise<strin
   });
 
   try {
-    await client.connect();
+    // Le message brut d'imapflow en cas de refus d'authentification est un opaque
+    // « Command failed » : sans ce diagnostic, un mot de passe d'application Gmail
+    // expiré ou révoqué fait échouer TOUS les tests authentifiés sans indice.
+    try {
+      await client.connect();
+    } catch (e) {
+      const err = e as { authenticationFailed?: boolean; responseText?: string };
+      if (err.authenticationFailed) {
+        throw new Error(
+          `Connexion IMAP refusée pour « ${email} » : ${err.responseText ?? 'identifiants invalides'}. ` +
+            `Le mot de passe d'application Gmail (GMAIL_APP_PASSWORD) est probablement expiré ou révoqué ` +
+            `— Google les invalide notamment quand le mot de passe du compte change. ` +
+            `En régénérer un sur https://myaccount.google.com/apppasswords, puis mettre à jour .env ` +
+            `ET secrets_e2e.yml (puis « npm run secrets:encrypt »).`,
+        );
+      }
+      throw e;
+    }
+
     const deadline = Date.now() + timeoutMs;
 
     while (Date.now() < deadline) {
@@ -80,7 +98,8 @@ export async function fetchOtpFromEmail(options: OtpOptions = {}): Promise<strin
               { source: true, envelope: true },
               { uid: true },
             );
-            if (!msg) continue;
+            // `source` est optionnel dans la réponse IMAP : sans lui, rien à parser.
+            if (!msg || !msg.source) continue;
 
             // Ignore les mails antérieurs à la demande (marge 5 s pour le décalage
             // d'horloge), pour ne pas consommer un ancien code non lu.
@@ -89,7 +108,9 @@ export async function fetchOtpFromEmail(options: OtpOptions = {}): Promise<strin
               continue;
             }
 
-            const parsed = await simpleParser(msg.source);
+            // Annotation explicite : `simpleParser` a une surcharge à callback, et sans
+            // type de retour attendu TypeScript résout l'union et perd `text`/`html`.
+            const parsed: ParsedMail = await simpleParser(msg.source);
             const text = (parsed.text ?? parsed.html ?? '').toString();
             const code = extractCode(text);
 

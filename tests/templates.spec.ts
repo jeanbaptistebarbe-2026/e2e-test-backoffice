@@ -1,8 +1,8 @@
 import { test, expect } from './fixtures';
 import { TemplatesPage } from '../pages/TemplatesPage';
 
-test.describe('Templates — administration (authentifié)', () => {
-  test('la liste des templates se charge', async ({ page }) => {
+test.describe('Templates — administration (authentifié)', { tag: ['@admin'] }, () => {
+  test('la liste des templates se charge', { tag: ['@TC-ADM-TPL-01', '@p0', '@smoke', '@readonly'] }, async ({ page }) => {
     const templates = new TemplatesPage(page);
     await templates.goToList();
 
@@ -11,7 +11,7 @@ test.describe('Templates — administration (authentifié)', () => {
     await expect(templates.searchInput).toBeVisible();
   });
 
-  test('cycle de vie d’un template : création, édition puis suppression', async ({ page }) => {
+  test('cycle de vie d’un template : création, édition puis suppression', { tag: ['@TC-ADM-TPL-04', '@p1', '@write'] }, async ({ page }) => {
     const templates = new TemplatesPage(page);
     const ts = Date.now();
     const name = `TEMPLATE ${ts}`;

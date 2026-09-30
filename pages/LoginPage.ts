@@ -57,17 +57,24 @@ export class LoginPage extends BasePage {
   async goToAuthLanding(): Promise<void> {
     await this.goto('/');
     await this.page.waitForURL('**/auth**', { timeout: 15_000 });
-    await this.signInWithAuth0Button.waitFor({ state: 'visible', timeout: 15_000 });
-    // Évite la race d'hydratation React : le bouton peut être visible avant
-    // que son handler de clic ne soit attaché.
-    await this.page.waitForLoadState('networkidle');
+    await expect(this.signInWithAuth0Button).toBeEnabled({ timeout: 15_000 });
   }
 
-  /** Depuis la page /auth, lance Auth0 et attend l'écran identifiant. */
+  /**
+   * Depuis la page /auth, lance Auth0 et attend l'écran identifiant.
+   *
+   * Le clic est auto-réessayé : à cause de l'hydratation React, le bouton peut être
+   * visible et actif avant que son handler ne soit attaché — un premier clic est
+   * alors silencieusement avalé. On réessaie jusqu'à ce que la navigation parte.
+   * (Remède au `waitForLoadState('networkidle')` qui traînait ici : interdit dans ce
+   * repo, cf. docs/RAPPORT-E2E.md §7, et de toute façon non déterministe.)
+   */
   async goToLogin(): Promise<void> {
     await this.goToAuthLanding();
-    await this.signInWithAuth0Button.click();
-    await this.page.waitForURL('**/u/login/identifier**', { timeout: 30_000 });
+    await expect(async () => {
+      await this.signInWithAuth0Button.click({ timeout: 5_000 });
+      await this.page.waitForURL('**/u/login/identifier**', { timeout: 8_000 });
+    }).toPass({ timeout: 45_000 });
   }
 
   async fillEmail(email: string): Promise<void> {

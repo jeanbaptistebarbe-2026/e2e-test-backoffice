@@ -1,8 +1,8 @@
 import { test, expect } from './fixtures';
 import { CollaboratorsPage } from '../pages/CollaboratorsPage';
 
-test.describe('Collaborators — liste (authentifié)', () => {
-  test('la liste des collaborateurs se charge et est peuplée', async ({ page }) => {
+test.describe('Collaborators — liste (authentifié)', { tag: ['@admin', '@readonly'] }, () => {
+  test('la liste des collaborateurs se charge et est peuplée', { tag: ['@TC-ADM-COL-01', '@p0', '@smoke'] }, async ({ page }) => {
     const collaborators = new CollaboratorsPage(page);
     await collaborators.goToList();
 

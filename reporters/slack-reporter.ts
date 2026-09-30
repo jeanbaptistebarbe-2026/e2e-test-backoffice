@@ -7,7 +7,7 @@ import type {
   FullResult,
 } from '@playwright/test/reporter';
 import fs from 'fs';
-import { WebClient } from '@slack/web-api';
+import { WebClient, type KnownBlock } from '@slack/web-api';
 import { requireSecret } from '../utils/secrets';
 
 /**
@@ -99,46 +99,50 @@ export default class SlackReporter implements Reporter {
 
     const client = new WebClient(this.token);
     try {
+      const blocks: KnownBlock[] = [
+        { type: 'header', text: { type: 'plain_text', text: ok ? '✅ Tests E2E — OK' : '❌ Tests E2E — échecs', emoji: true } },
+        {
+          type: 'section',
+          fields: [
+            { type: 'mrkdwn', text: `*Passés:*\n${passed}` },
+            { type: 'mrkdwn', text: `*Échoués:*\n${failed}` },
+            { type: 'mrkdwn', text: `*Skippés:*\n${skipped}` },
+            { type: 'mrkdwn', text: `*Durée:*\n${durationSec}s` },
+          ],
+        },
+      ];
+      if (failures.length) {
+        blocks.push({
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '*Tests en échec:*\n' + failures.map((f) => `• ${f.title}`).join('\n'),
+          },
+        });
+      }
+
       const summary = await client.chat.postMessage({
         channel: this.channel,
         text: headline,
-        blocks: [
-          { type: 'header', text: { type: 'plain_text', text: ok ? '✅ Tests E2E — OK' : '❌ Tests E2E — échecs', emoji: true } },
-          {
-            type: 'section',
-            fields: [
-              { type: 'mrkdwn', text: `*Passés:*\n${passed}` },
-              { type: 'mrkdwn', text: `*Échoués:*\n${failed}` },
-              { type: 'mrkdwn', text: `*Skippés:*\n${skipped}` },
-              { type: 'mrkdwn', text: `*Durée:*\n${durationSec}s` },
-            ],
-          },
-          ...(failures.length
-            ? [
-                {
-                  type: 'section',
-                  text: {
-                    type: 'mrkdwn',
-                    text: '*Tests en échec:*\n' + failures.map((f) => `• ${f.title}`).join('\n'),
-                  },
-                },
-              ]
-            : []),
-        ],
+        blocks,
       });
 
       const thread_ts = summary.ts as string | undefined;
+      // `files.uploadV2` exige un `thread_ts` de type string : on n'inclut la clé que
+      // si Slack nous a bien renvoyé l'horodatage du message de synthèse (sinon les
+      // fichiers partent dans le canal, ce qui reste préférable à une exception).
+      const inThread = thread_ts ? { thread_ts } : {};
 
       for (const f of failures) {
         await client.chat.postMessage({
           channel: this.channel,
-          thread_ts,
+          ...inThread,
           text: `*${f.title}*\n\`\`\`${f.error}\`\`\``,
         });
         if (f.screenshot && fs.existsSync(f.screenshot)) {
           await client.files.uploadV2({
             channel_id: this.channel,
-            thread_ts,
+            ...inThread,
             file: fs.readFileSync(f.screenshot),
             filename: 'screenshot.png',
             title: `${f.title} — capture`,
@@ -147,7 +151,7 @@ export default class SlackReporter implements Reporter {
         if (f.trace && fs.existsSync(f.trace)) {
           await client.files.uploadV2({
             channel_id: this.channel,
-            thread_ts,
+            ...inThread,
             file: fs.readFileSync(f.trace),
             filename: 'trace.zip',
             title: `${f.title} — trace (ouvrir sur trace.playwright.dev)`,
