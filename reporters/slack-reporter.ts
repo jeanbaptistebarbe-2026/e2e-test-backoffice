@@ -8,7 +8,7 @@ import type {
 } from '@playwright/test/reporter';
 import fs from 'fs';
 import { WebClient, type KnownBlock } from '@slack/web-api';
-import { requireSecret } from '../utils/secrets';
+import { requireSecret, resolveSecretsKey } from '../utils/secrets';
 
 /**
  * Reporter Slack : à la fin du run, poste un message de synthèse formaté dans un
@@ -46,6 +46,13 @@ export default class SlackReporter implements Reporter {
   onBegin(_config: FullConfig, suite: Suite): void {
     this.suite = suite;
     this.startTime = Date.now();
+    // Notification réservée aux runs « officiels » (Squash / --key), qui fournissent la
+    // clé de déchiffrement. Un run local nu ne notifie jamais, même si les secrets Slack
+    // sont lisibles via secrets_e2e.yml en clair.
+    if (!resolveSecretsKey()) {
+      this.enabled = false;
+      return;
+    }
     try {
       this.token = requireSecret('SLACK_BOT_TOKEN');
       this.channel = requireSecret('SLACK_CHANNEL_ID');
@@ -60,9 +67,11 @@ export default class SlackReporter implements Reporter {
 
   async onEnd(result: FullResult): Promise<void> {
     if (!this.enabled) {
-      console.log('[slack-reporter] désactivé (secrets Slack non résolus) — aucun message envoyé.');
+      console.log('[slack-reporter] désactivé (pas de clé E2E ou secrets Slack absents) — aucun message envoyé.');
       return;
     }
+    // Aucun test exécuté (ex. `--list`) : rien à notifier.
+    if (this.suite.allTests().every((t) => t.results.length === 0)) return;
 
     let passed = 0;
     let failed = 0;
