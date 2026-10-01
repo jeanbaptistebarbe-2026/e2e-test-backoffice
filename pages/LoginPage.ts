@@ -84,6 +84,9 @@ export class LoginPage extends BasePage {
    * Flux complet : email → mot de passe → bascule sur le facteur MFA « E-mail »
    * (le compte a SMS par défaut) → code envoyé par Auth0, lu en IMAP → retour backoffice.
    * Aucune dépendance à un téléphone : Auth0 envoie le code à l'adresse du compte.
+   *
+   * Le MFA est FACULTATIF : un compte sans MFA (ex. le compte BPO de démo) revient
+   * directement sur le backoffice après le mot de passe.
    */
   async loginWithOtp(
     // Identifiants lus depuis les secrets chiffrés (ou .env local), jamais en dur.
@@ -96,6 +99,13 @@ export class LoginPage extends BasePage {
     await this.enterEmail(email);
     await this.fillPassword(password);
     await this.submitPassword();
+
+    // Après le mot de passe : retour direct sur QG (compte sans MFA) ou challenge MFA.
+    await this.page.waitForURL(
+      (url) => !url.host.includes('auth0.tiime.fr') || url.pathname.startsWith('/u/mfa-'),
+      { timeout: 30_000 },
+    );
+    if (!new URL(this.page.url()).host.includes('auth0.tiime.fr')) return;
 
     // Le challenge par défaut est le SMS → on choisit le facteur « E-mail ».
     await this.useAnotherMethodLink.click();
