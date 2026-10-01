@@ -1,9 +1,15 @@
 # E2E Backoffice — Tests Playwright Swapn
 
 Tests end-to-end [Playwright](https://playwright.dev) du backoffice Swapn (`qg.swapn.tech`).
-Couvre le flux d'authentification **Auth0 Tiime** (login + MFA, le test bascule sur le facteur
-**« E-mail »** et lit le code en IMAP — aucun téléphone requis) et un smoke test du backoffice.
-Architecture **Page Object Model**.
+Couvre, avec deux rôles (**ADMIN** et **BPO**) :
+- l'**authentification** Auth0 Tiime (login + MFA : le test bascule sur le facteur **« E-mail »**
+  et lit le code en IMAP — aucun téléphone requis ; le compte BPO n'a pas de MFA) ;
+- le **traitement des tickets FDE** (Contrôles, rôle BPO) ;
+- la **messagerie** e-mail et interne (Inbox, rôle ADMIN) ;
+- l'**affichage sans erreur** des pages de tous les menus ;
+- les écrans d'administration (templates, signatures, collaborateurs, intégrations).
+
+Architecture **Page Object Model**. Référence fonctionnelle : « Swapn QG — source de vérité e2e ».
 
 ---
 
@@ -42,10 +48,20 @@ Le fichier `.env` contient des **secrets** et n'est **pas versionné**. Recrée-
 cp .env.example .env      # Windows PowerShell : copy .env.example .env
 ```
 
+> En local, le fichier **`secrets_e2e.yml`** (en clair, non versionné) est lu directement et
+> **prime sur `.env`**. Sur Squash/CI, les secrets viennent de `secrets_e2e.enc.yml` (chiffré,
+> versionné), déchiffré avec la clé `E2E_SECRETS_KEY`. Après toute modification de
+> `secrets_e2e.yml` : `npm run secrets:encrypt -- --key=<clé>` puis commit du fichier chiffré.
+
 | Variable | Requis ? | Rôle / défaut |
 |----------|----------|---------------|
-| `AUTH_EMAIL` | ✅ **obligatoire** | email du compte de test Auth0 Tiime (= adresse qui reçoit le code MFA) |
-| `AUTH_PASSWORD` | ✅ **obligatoire** | mot de passe du compte de test |
+| `AUTH_EMAIL` | ✅ **obligatoire** | email du compte de test « admin » (= adresse qui reçoit le code MFA) |
+| `AUTH_PASSWORD` | ✅ **obligatoire** | mot de passe du compte « admin » |
+| `AUTH_EMAIL_BPO` / `AUTH_PASSWORD_BPO` | pour les tests BPO | compte BPO ; absents → tests BPO **sautés** |
+| `GMAIL_USER_BPO` / `GMAIL_APP_PASSWORD_BPO` | optionnel | boîte IMAP du BPO si elle diffère de celle de l'admin |
+| `FDE_TEST_COMPANY` | optionnel | société des tickets FDE de test — défaut : `Demo Setex 1` |
+| `API_URL` | optionnel | API QG (remise à l'état des données) — défaut : `https://api.preprod.swapn.tech` |
+| `E2E_SECRETS_KEY` | Squash / CI | clé de déchiffrement de `secrets_e2e.enc.yml` (active aussi la notification Slack) |
 | `GMAIL_APP_PASSWORD` | ✅ **obligatoire** (secret) | mot de passe d'application IMAP de la boîte du compte — voir [aide Google](https://support.google.com/accounts/answer/185833) |
 | `BASE_URL` | optionnel | URL du backoffice — défaut : `https://qg.swapn.tech/` |
 | `GMAIL_USER` | optionnel | boîte IMAP lue — défaut : `jean.baptiste.barbe@swapn.fr` |
@@ -105,22 +121,28 @@ description du test sont des **annotations**, affichées dans la page de détail
 ```
 .
 ├── tests/
-│   ├── fixtures.ts            # base partagée : auth en fixture + screenshot d'échec
-│   ├── login.spec.ts          # flux de login Auth0 (logged-out)
-│   ├── signatures.spec.ts     # CRUD signatures
-│   ├── templates.spec.ts      # CRUD templates
-│   ├── collaborators.spec.ts  # liste
-│   ├── integrations.spec.ts   # page intégrations
-│   ├── calendar.spec.ts       # calendrier (conditionné au SSO Google)
-│   └── smoke.spec.ts          # smoke authentifié
+│   ├── fixtures.ts            # auth par rôle en fixture, santé de page, capture + trace d'échec
+│   ├── meta.ts                # meta() : ID Squash + description (rapport), tag @ecriture
+│   ├── data/routes.ts         # table des pages des menus (spec « affichage sans erreur »)
+│   ├── login.spec.ts          # écrans Auth0 (sans session)
+│   ├── auth/                  # session.spec.ts (sans session) · roles.spec.ts (rôles, déconnexion)
+│   ├── navigation/            # pages.spec.ts : toutes les pages des menus, ADMIN et BPO
+│   ├── inbox/                 # messagerie.spec.ts : e-mail, commentaires internes, brouillons
+│   ├── controles/             # tickets.spec.ts : traitement des tickets FDE (BPO)
+│   └── templates · signatures · collaborators · integrations .spec.ts
 ├── pages/                     # Page Object Model
-│   ├── BasePage.ts            #   base : navigation / résolution d'URL
-│   ├── AdminListPage.ts       #   base des listes CRUD admin
-│   ├── LoginPage.ts           #   login Auth0 + bascule MFA e-mail
-│   ├── SignaturesPage.ts  TemplatesPage.ts  CollaboratorsPage.ts
-│   ├── IntegrationsPage.ts  CalendarPage.ts  HomePage.ts
+│   ├── BasePage.ts  AppShell.ts         # navigation, rail, sous-menus, toasts, erreurs
+│   ├── LoginPage.ts                     # login Auth0 (+ MFA e-mail facultatif)
+│   ├── InboxPage.ts  ComposerDialog.ts  ConversationPanel.ts
+│   ├── TicketsPage.ts
+│   └── AdminListPage.ts  SignaturesPage.ts  TemplatesPage.ts  CollaboratorsPage.ts  IntegrationsPage.ts
 ├── utils/
-│   └── email-otp.ts           # récupération du code MFA e-mail Auth0 via IMAP
+│   ├── roles.ts               # identifiants par rôle (admin / bpo)
+│   ├── email-otp.ts           # lecture IMAP : code MFA, mails envoyés par les tests
+│   ├── api.ts                 # client API de remise à l'état (jamais pour l'action testée)
+│   ├── page-health.ts         # erreurs JS / console / 5xx relevées sur la page
+│   └── secrets.ts             # secrets : secrets_e2e.yml (local) ou secrets_e2e.enc.yml (chiffré)
+├── reporters/slack-reporter.ts
 ├── playwright.config.ts       # 1 projet Chromium (auth en fixture, pas en projet)
 └── .env.example               # template des variables d'environnement
 ```
@@ -130,10 +152,22 @@ description du test sont des **annotations**, affichées dans la page de détail
 L'auth est gérée **en code** dans `tests/fixtures.ts` (et non via des `projects`/`dependencies`, que
 l'orchestrateur SquashTM ignore) :
 
-- les specs authentifiés importent `test` → une fixture se connecte **une fois** (login + MFA e-mail),
-  met l'état en cache (`playwright/.auth/user.json`) et le réutilise (verrou fichier pour sérialiser
-  entre workers) ;
-- `login.spec.ts` importe `loggedOutTest` → contexte vierge pour valider le flux de connexion.
+- les specs authentifiés importent `test` → une fixture se connecte **une fois par rôle**
+  (`test.use({ role: 'bpo' })`, défaut `admin`), met l'état en cache
+  (`playwright/.auth/<role>.json`, réutilisé 10 min) et sérialise les logins par un verrou fichier ;
+- les specs sans session importent `loggedOutTest` → contexte vierge ;
+- la déconnexion utilise `freshLoggedInContext()` : une session privée, pour ne pas révoquer celle
+  des autres tests.
+
+### Données de test
+
+- **Messagerie** : chaque run s'envoie un mail depuis le BO (objet `E2E <horodatage>`), le vérifie
+  en IMAP, puis archive les conversations de test (y compris les copies tardives remontées par la
+  synchronisation Gmail lors des runs précédents).
+- **Tickets FDE** : sur la société `FDE_TEST_COMPANY` ; tout ticket modifié est remis « À traiter »
+  après le test. La réservation posée à l'ouverture par le BPO n'est pas libérable par l'API et
+  expire seule (30 min).
+- **Administration** : templates, signatures, vues et brouillons créés sont supprimés en fin de test.
 
 Chaque spec est donc **autonome** : on peut lancer toute la suite (ou un sous-ensemble) sans
 orchestration de config — y compris sur SquashTM (réf. du test auto = `tests/`).

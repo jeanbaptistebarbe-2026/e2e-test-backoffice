@@ -11,7 +11,18 @@ import { APIRequestContext, APIResponse, Page, request } from '@playwright/test'
  * fichier storageState. Il n'est jamais journalisé (cf. ANO-17).
  */
 
-const API_URL = (process.env.API_URL?.trim() || 'https://api.preprod.swapn.tech').replace(/\/+$/, '');
+/** URL de l'API QG (défaut : preprod). Surchargeable par la variable `API_URL`. */
+export const API_URL = (process.env.API_URL?.trim() || 'https://api.preprod.swapn.tech').replace(/\/+$/, '');
+const API_HOST = new URL(API_URL).host;
+
+/** L'URL vise-t-elle l'API QG ? (filtre des requêtes observées par les tests). */
+export const isApiUrl = (url: string): boolean => {
+  try {
+    return new URL(url).host === API_HOST;
+  } catch {
+    return false;
+  }
+};
 
 export class QgApi {
   private constructor(private readonly ctx: APIRequestContext) {}
@@ -108,10 +119,6 @@ export class QgApi {
 
   async deleteDraft(draftId: string): Promise<void> {
     await this.delete(`/drafts/${draftId}`);
-  }
-
-  async deleteFdeView(viewId: string): Promise<void> {
-    await this.delete(`/fde-views/${viewId}`);
   }
 
   async dispose(): Promise<void> {

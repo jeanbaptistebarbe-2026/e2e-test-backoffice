@@ -4,7 +4,7 @@ import { InboxPage, InboxView } from '../../pages/InboxPage';
 import { ComposerDialog } from '../../pages/ComposerDialog';
 import { ConversationPanel } from '../../pages/ConversationPanel';
 import { AppShell } from '../../pages/AppShell';
-import { QgApi } from '../../utils/api';
+import { QgApi, isApiUrl } from '../../utils/api';
 import { credentialsFor } from '../../utils/roles';
 import { fetchEmailBySubject } from '../../utils/email-otp';
 import { meta } from '../meta';
@@ -22,7 +22,7 @@ import { meta } from '../meta';
 function trackApiWrites(page: Page): string[] {
   const writes: string[] = [];
   page.on('request', (r: Request) => {
-    if (/api\.preprod\.swapn\.tech/.test(r.url()) && r.method() !== 'GET') {
+    if (isApiUrl(r.url()) && r.method() !== 'GET') {
       writes.push(`${r.method()} ${new URL(r.url()).pathname}`);
     }
   });

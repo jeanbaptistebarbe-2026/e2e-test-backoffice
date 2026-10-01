@@ -105,7 +105,10 @@ export class LoginPage extends BasePage {
       (url) => !url.host.includes('auth0.tiime.fr') || url.pathname.startsWith('/u/mfa-'),
       { timeout: 30_000 },
     );
-    if (!new URL(this.page.url()).host.includes('auth0.tiime.fr')) return;
+    if (!new URL(this.page.url()).host.includes('auth0.tiime.fr')) {
+      await this.waitForApp();
+      return;
+    }
 
     // Le challenge par défaut est le SMS → on choisit le facteur « E-mail ».
     await this.useAnotherMethodLink.click();
@@ -128,8 +131,19 @@ export class LoginPage extends BasePage {
     await this.otpInput.fill(otp);
     await this.continueButton.click();
 
-    await this.page.waitForURL((url) => !url.host.includes('auth0.tiime.fr'), {
-      timeout: 30_000,
-    });
+    await this.waitForApp();
+  }
+
+  /**
+   * Attend l'arrivée dans l'application : hors d'Auth0 ET hors de `/auth/*`.
+   * Quitter Auth0 ne suffit pas : `/auth/callback` échange encore le code contre
+   * les jetons (POST /auth/callback) avant de rediriger. Sauvegarder la session
+   * trop tôt la rendrait incomplète.
+   */
+  private async waitForApp(): Promise<void> {
+    await this.page.waitForURL(
+      (url) => !url.host.includes('auth0.tiime.fr') && !url.pathname.startsWith('/auth'),
+      { timeout: 30_000 },
+    );
   }
 }

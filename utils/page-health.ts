@@ -1,4 +1,5 @@
 import { Page, TestInfo, expect } from '@playwright/test';
+import { isApiUrl } from './api';
 
 /**
  * Collecteur des signaux d'erreur d'une page, pour vérifier qu'un écran
@@ -18,9 +19,6 @@ export interface HealthIssue {
   url?: string;
 }
 
-/** Hôte de l'API QG (seules ses réponses sont surveillées ; S3, Google… sont ignorés). */
-const API_HOST = /api\.preprod\.swapn\.tech/;
-
 /**
  * Bruit connu, jamais signalé :
  *   - « Failed to load resource » : doublon console des réponses HTTP (déjà suivies) ;
@@ -38,12 +36,10 @@ export class PageHealth {
   /** Requêtes vers l'API QG en cours (WebSockets exclus : ce ne sont pas des `request`). */
   private pending = 0;
   private lastActivity = Date.now();
-  /** Motifs tolérés en plus du bruit connu, ajoutés par un test (`allow`). */
-  private readonly allowed: RegExp[] = [];
 
   constructor(page: Page) {
     const track = (delta: number) => (req: { url(): string }) => {
-      if (!API_HOST.test(req.url())) return;
+      if (!isApiUrl(req.url())) return; // S3, Google… ignorés
       this.pending = Math.max(0, this.pending + delta);
       this.lastActivity = Date.now();
     };
@@ -58,7 +54,7 @@ export class PageHealth {
       this.push({ kind: 'console', message: text, url: msg.location().url });
     });
     page.on('response', (res) => {
-      if (res.status() < 500 || !API_HOST.test(res.url())) return;
+      if (res.status() < 500 || !isApiUrl(res.url())) return;
       // Chemin seul : jamais de query string (jetons WebSocket, cf. ANO-17).
       const { pathname } = new URL(res.url());
       this.push({
@@ -71,21 +67,6 @@ export class PageHealth {
 
   private push(issue: HealthIssue): void {
     this.issues.push(issue);
-  }
-
-  /** Tolère un problème connu pour ce test (ex. `/\/llm-costs\/overview → 502/`). */
-  allow(pattern: RegExp): void {
-    this.allowed.push(pattern);
-  }
-
-  /** Problèmes relevés, hors motifs tolérés. */
-  get reported(): HealthIssue[] {
-    return this.issues.filter((i) => !this.allowed.some((re) => re.test(i.message)));
-  }
-
-  /** Oublie les problèmes relevés jusqu'ici (ex. après une navigation préparatoire). */
-  reset(): void {
-    this.issues.length = 0;
   }
 
   /**
@@ -104,7 +85,7 @@ export class PageHealth {
 
   /** Échoue si la page a levé une erreur JS, loggé une erreur ou reçu un 5xx de l'API. */
   expectClean(): void {
-    const lines = this.reported.map((i) => `[${i.kind}] ${i.message}`);
+    const lines = this.issues.map((i) => `[${i.kind}] ${i.message}`);
     expect(lines, 'erreurs relevées sur la page').toEqual([]);
   }
 

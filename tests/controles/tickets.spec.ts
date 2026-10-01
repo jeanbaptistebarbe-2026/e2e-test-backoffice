@@ -2,7 +2,7 @@ import { Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
 import { TicketsPage, FIL_DE_L_EAU } from '../../pages/TicketsPage';
 import { AppShell } from '../../pages/AppShell';
-import { QgApi } from '../../utils/api';
+import { QgApi, isApiUrl } from '../../utils/api';
 import { roleAvailable } from '../../utils/roles';
 import { meta } from '../meta';
 
@@ -32,7 +32,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@role-bpo', '@controles'] }, ()
   test.beforeEach(async ({ page }) => {
     touched = new Set();
     page.on('request', (r) => {
-      if (r.method() === 'GET' || !/api\.preprod\.swapn\.tech/.test(r.url())) return;
+      if (r.method() === 'GET' || !isApiUrl(r.url())) return;
       const m = new URL(r.url()).pathname.match(/\/tickets\/([0-9a-f-]{36})/);
       if (m) touched.add(m[1]);
     });
