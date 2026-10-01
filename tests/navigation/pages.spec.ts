@@ -5,6 +5,7 @@ import { QgApi } from '../../utils/api';
 import { roleAvailable } from '../../utils/roles';
 import type { PageHealth } from '../../utils/page-health';
 import { ADMIN_PAGES, BPO_PAGES, ADMIN_RAIL_TARGETS, ADMIN_SUBMENU, PageRoute } from '../data/routes';
+import { meta } from '../meta';
 
 /**
  * Affichage sans erreur des pages de tous les menus (Lot 2).
@@ -14,6 +15,14 @@ import { ADMIN_PAGES, BPO_PAGES, ADMIN_RAIL_TARGETS, ADMIN_SUBMENU, PageRoute } 
  * Répartition des rôles : l'ADMIN couvre tout sauf `/tickets` ; le BPO couvre
  * Contrôles et Kiosk (son détail de ticket est dans le Lot 3, car l'ouvrir le réserve).
  */
+
+/** Description lisible (rapport) d'un test de page généré depuis la table des routes. */
+function describeRoute(route: PageRoute): string {
+  const base =
+    `Ouvre ${route.path} (menu ${route.menu}) et vérifie que la page s’affiche : repère attendu visible, ` +
+    `ni écran d’erreur ni « Accès refusé », ni erreur JavaScript, ni réponse 5xx de l’API.`;
+  return route.knownIssue ? `${base} Échec attendu tant que l’anomalie est présente (${route.knownIssue}).` : base;
+}
 
 /** Le compte connecté est-il SUPER_ADMIN ? (le compte « admin » l'est aujourd'hui). */
 async function isSuperAdmin(page: Page): Promise<boolean> {
@@ -42,11 +51,11 @@ async function expectPageDisplays(
   health.expectClean();
 }
 
-test.describe('Pages des menus — ADMIN', { tag: ['@nav', '@readonly', '@role-admin'] }, () => {
+test.describe('Pages des menus — ADMIN', { tag: ['@role-admin', '@navigation'] }, () => {
   for (const route of ADMIN_PAGES) {
     test(
       `${route.menu} — ${route.path} s’affiche sans erreur`,
-      { tag: [`@TC-NAV-${route.id}`, '@p0', ...(route.smoke ? ['@smoke'] : [])] },
+      meta(`TC-NAV-${route.id}`, describeRoute(route)),
       async ({ page, health }) => {
         test.fail(!!route.knownIssue, route.knownIssue);
         await expectPageDisplays(page, health, route);
@@ -56,7 +65,7 @@ test.describe('Pages des menus — ADMIN', { tag: ['@nav', '@readonly', '@role-a
 
   test(
     'Annuaire — fiche société et ses 3 onglets s’affichent sans erreur',
-    { tag: ['@TC-NAV-ANN-02', '@p0'] },
+    meta('TC-NAV-ANN-02', 'Ouvre une fiche société depuis l’Annuaire et parcourt ses onglets Identité, Threads et Tickets sans erreur.'),
     async ({ page, health }) => {
       const shell = new AppShell(page);
       await shell.goto('/annuaire');
@@ -80,7 +89,7 @@ test.describe('Pages des menus — ADMIN', { tag: ['@nav', '@readonly', '@role-a
 
   test(
     'Annuaire — fiche contact et ses 2 onglets s’affichent sans erreur',
-    { tag: ['@TC-NAV-ANN-03', '@p1'] },
+    meta('TC-NAV-ANN-03', 'Ouvre une fiche contact depuis l’onglet Contacts de l’Annuaire et parcourt ses deux onglets sans erreur.'),
     async ({ page, health }) => {
       const shell = new AppShell(page);
       await shell.goto('/annuaire');
@@ -104,7 +113,7 @@ test.describe('Pages des menus — ADMIN', { tag: ['@nav', '@readonly', '@role-a
 
   test(
     'Kiosk — une page de documentation s’ouvre par la recherche ⌘K',
-    { tag: ['@TC-NAV-KIO-03', '@p1'] },
+    meta('TC-NAV-KIO-03', 'Recherche « FDE-034 » avec ⌘K dans le Kiosk et vérifie l’ouverture de la page de documentation.'),
     async ({ page, health }) => {
       const shell = new AppShell(page);
       await shell.goto('/knowledge-bases');
@@ -127,7 +136,7 @@ test.describe('Pages des menus — ADMIN', { tag: ['@nav', '@readonly', '@role-a
 
   test(
     'Rail — chaque entrée mène à sa page (1re sous-entrée autorisée)',
-    { tag: ['@TC-NAV-MENU-01', '@p1'] },
+    meta('TC-NAV-MENU-01', 'Clique chaque entrée du rail et vérifie la page ouverte (1re sous-entrée autorisée pour Administration et Paramètres).'),
     async ({ page }) => {
       const shell = new AppShell(page);
       await shell.goto('/annuaire');
@@ -140,7 +149,7 @@ test.describe('Pages des menus — ADMIN', { tag: ['@nav', '@readonly', '@role-a
 
   test(
     'Administration — chaque entrée du sous-menu mène à sa page et devient active',
-    { tag: ['@TC-NAV-MENU-02', '@p1'] },
+    meta('TC-NAV-MENU-02', 'Clique chaque entrée du sous-menu Administration et vérifie la page ouverte et l’entrée active.'),
     async ({ page }) => {
       const shell = new AppShell(page);
       await shell.goto('/administration/templates');
@@ -160,7 +169,7 @@ test.describe('Pages des menus — ADMIN', { tag: ['@nav', '@readonly', '@role-a
 
   test(
     'Paramètres — chaque entrée du sous-menu mène à sa page',
-    { tag: ['@TC-NAV-MENU-03', '@p2'] },
+    meta('TC-NAV-MENU-03', 'Clique « Signatures » puis « Intégration » dans le sous-menu Paramètres et vérifie les pages ouvertes.'),
     async ({ page }) => {
       const shell = new AppShell(page);
       await shell.goto('/administration/integrations');
@@ -172,14 +181,14 @@ test.describe('Pages des menus — ADMIN', { tag: ['@nav', '@readonly', '@role-a
   );
 });
 
-test.describe('Pages des menus — BPO', { tag: ['@nav', '@readonly', '@role-bpo'] }, () => {
+test.describe('Pages des menus — BPO', { tag: ['@role-bpo', '@navigation'] }, () => {
   test.skip(!roleAvailable('bpo'), 'Compte BPO non renseigné (AUTH_EMAIL_BPO / AUTH_PASSWORD_BPO)');
   test.use({ role: 'bpo' });
 
   for (const route of BPO_PAGES) {
     test(
       `${route.menu} — ${route.path} s’affiche sans erreur`,
-      { tag: [`@TC-NAV-${route.id}`, '@p0'] },
+      meta(`TC-NAV-${route.id}`, describeRoute(route)),
       async ({ page, health }) => {
         await expectPageDisplays(page, health, route);
       },
@@ -188,7 +197,7 @@ test.describe('Pages des menus — BPO', { tag: ['@nav', '@readonly', '@role-bpo
 
   test(
     'Rail — seules les entrées « Contrôles » et « Kiosk » sont visibles',
-    { tag: ['@TC-NAV-MENU-B1', '@p0'] },
+    meta('TC-NAV-MENU-B1', 'Avec la session BPO, vérifie que le rail ne propose que « Contrôles » et « Kiosk ».'),
     async ({ page }) => {
       const shell = new AppShell(page);
       await shell.goto('/tickets');

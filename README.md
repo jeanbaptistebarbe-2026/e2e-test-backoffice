@@ -86,9 +86,17 @@ npm run test:headed
 |----------|-------------|
 | `npm test` | Toute la suite (headless) |
 | `npm run test:headed` | Toute la suite, navigateur visible |
-| `npm run test:login` | Uniquement le flux de login (projet `logged-out`, sans auth) |
-| `npm run test:smoke` | Uniquement le smoke test authentifié |
+| `npm run test:readonly` | Tests sans modification de données (non-régression quotidienne) |
+| `npm run test:write` | Tests qui modifient des données (envoi de mail, statuts de tickets, CRUD…) |
+| `npm run test:auth` | Authentification |
+| `npm run test:admin` / `npm run test:bpo` | Tests d'un rôle |
 | `npm run report` | Ouvre le dernier rapport HTML |
+
+**Tags** (au plus 3 par test, visibles dans le rapport) : le rôle (`@role-admin`, `@role-bpo`),
+le module (`@auth`, `@navigation`, `@messagerie`, `@controles`, `@administration`, `@parametres`)
+et `@ecriture` pour les tests qui modifient des données. L'identifiant Squash (`TC-…`) et une
+description du test sont des **annotations**, affichées dans la page de détail du test du rapport
+(helper `meta()` de `tests/meta.ts`).
 
 ---
 

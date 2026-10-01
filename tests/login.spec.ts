@@ -1,6 +1,7 @@
 import { loggedOutTest as test, expect } from './fixtures';
 import { LoginPage } from '../pages/LoginPage';
 import { requireSecret } from '../utils/secrets';
+import { meta } from './meta';
 
 // Identifiants du compte de test : lus depuis les secrets chiffrés (ou un .env
 // local), jamais en dur dans le code. Cf. utils/secrets.ts.
@@ -19,7 +20,7 @@ const authPassword = () => requireSecret('AUTH_PASSWORD');
 // redirige désormais automatiquement vers Auth0. Remplacés par TC-AUTH-12
 // (tests/auth/session.spec.ts).
 
-test.describe('Login — écran email', { tag: ['@auth', '@readonly'] }, () => {
+test.describe('Login — écran email', { tag: ['@auth'] }, () => {
   let login: LoginPage;
 
   test.beforeEach(async ({ page }) => {
@@ -29,7 +30,7 @@ test.describe('Login — écran email', { tag: ['@auth', '@readonly'] }, () => {
 
   test(
     'redirige vers la page de login Auth0',
-    { tag: ['@TC-AUTH-UI-03', '@p1'] },
+    meta('TC-AUTH-UI-03', 'Sans session, ouvre le backoffice et vérifie la redirection vers l’écran identifiant d’Auth0 Tiime.'),
     async ({ page }) => {
       await expect(page).toHaveURL(/auth0\.tiime\.fr\/u\/login\/identifier/);
       await expect(login.usernameInput).toBeVisible();
@@ -38,7 +39,7 @@ test.describe('Login — écran email', { tag: ['@auth', '@readonly'] }, () => {
 
   test(
     'affiche une erreur si l’email est vide',
-    { tag: ['@TC-AUTH-UI-04', '@p1'] },
+    meta('TC-AUTH-UI-04', 'Valide l’écran identifiant sans saisie et vérifie le message « Veuillez saisir une adresse e-mail ».'),
     async () => {
       await login.submitEmail();
       await expect(login.emailRequiredError).toBeVisible();
@@ -50,7 +51,7 @@ test.describe('Login — écran email', { tag: ['@auth', '@readonly'] }, () => {
 
   test(
     'affiche une erreur si le format d’email est invalide',
-    { tag: ['@TC-AUTH-UI-05', '@p1'] },
+    meta('TC-AUTH-UI-05', 'Saisit « not-an-email » et vérifie le message « Saisissez une adresse email valide ».'),
     async () => {
       await login.fillEmail('not-an-email');
       await login.submitEmail();
@@ -63,7 +64,7 @@ test.describe('Login — écran email', { tag: ['@auth', '@readonly'] }, () => {
 
   test(
     'un email valide mène à l’écran mot de passe',
-    { tag: ['@TC-AUTH-UI-06', '@p1'] },
+    meta('TC-AUTH-UI-06', 'Saisit l’e-mail du compte de test et vérifie le passage à l’écran mot de passe.'),
     async () => {
       await login.enterEmail(authEmail());
       await expect(login.passwordInput).toBeVisible();
@@ -71,7 +72,7 @@ test.describe('Login — écran email', { tag: ['@auth', '@readonly'] }, () => {
   );
 });
 
-test.describe('Login — écran mot de passe', { tag: ['@auth', '@readonly'] }, () => {
+test.describe('Login — écran mot de passe', { tag: ['@auth'] }, () => {
   let login: LoginPage;
 
   test.beforeEach(async ({ page }) => {
@@ -82,7 +83,7 @@ test.describe('Login — écran mot de passe', { tag: ['@auth', '@readonly'] }, 
 
   test(
     'affiche une erreur si le mot de passe est vide',
-    { tag: ['@TC-AUTH-UI-07', '@p1'] },
+    meta('TC-AUTH-UI-07', 'Valide l’écran mot de passe sans saisie et vérifie le message « Mot de passe requis ».'),
     async () => {
       await login.submitPassword();
       await expect(login.passwordRequiredError).toBeVisible();
@@ -92,7 +93,7 @@ test.describe('Login — écran mot de passe', { tag: ['@auth', '@readonly'] }, 
 
   test(
     'affiche une erreur si le mot de passe est incorrect',
-    { tag: ['@TC-AUTH-UI-08', '@p1'] },
+    meta('TC-AUTH-UI-08', 'Saisit un mauvais mot de passe et vérifie le message « Email ou mot de passe incorrect ».'),
     async () => {
       await login.fillPassword('WrongPassword123!');
       await login.submitPassword();
@@ -105,7 +106,7 @@ test.describe('Login — écran mot de passe', { tag: ['@auth', '@readonly'] }, 
 
   test(
     'un mot de passe valide mène au challenge MFA',
-    { tag: ['@TC-AUTH-UI-09', '@p1'] },
+    meta('TC-AUTH-UI-09', 'Saisit le bon mot de passe et vérifie l’arrivée sur un challenge MFA Auth0 (champ de code visible).'),
     async ({ page }) => {
       await login.fillPassword(authPassword());
       await login.submitPassword();

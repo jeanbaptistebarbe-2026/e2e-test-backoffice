@@ -4,6 +4,7 @@ import { TicketsPage, FIL_DE_L_EAU } from '../../pages/TicketsPage';
 import { AppShell } from '../../pages/AppShell';
 import { QgApi } from '../../utils/api';
 import { roleAvailable } from '../../utils/roles';
+import { meta } from '../meta';
 
 /**
  * Traitement des tickets FDE (Lot 3), rôle BPO — cœur de métier du BPO.
@@ -18,7 +19,7 @@ import { roleAvailable } from '../../utils/roles';
 
 const COMPANY = process.env.FDE_TEST_COMPANY?.trim() || 'Demo Setex 1';
 
-test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, () => {
+test.describe('Contrôles FDE — BPO', { tag: ['@role-bpo', '@controles'] }, () => {
   test.skip(!roleAvailable('bpo'), 'Compte BPO non renseigné (AUTH_EMAIL_BPO / AUTH_PASSWORD_BPO)');
   test.use({ role: 'bpo' });
   // Mêmes tickets partagés par tous les tests : en séquence dans un seul worker
@@ -61,7 +62,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'le « Fil de l’eau » affiche les 8 statuts dans l’ordre avec leur compteur',
-    { tag: ['@TC-CTL-01', '@p0', '@readonly'] },
+    meta('TC-CTL-01', 'Ouvre Contrôles et vérifie le panneau « Fil de l’eau » : 8 statuts dans l’ordre, chacun avec son compteur.'),
     async ({ page }) => {
       const tickets = new TicketsPage(page);
       await tickets.goTo();
@@ -77,7 +78,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'filtres par défaut du BPO (moi + Non assigné) et filtre par dossier',
-    { tag: ['@TC-CTL-02', '@p0', '@readonly'] },
+    meta('TC-CTL-02', 'Vérifie les filtres par défaut du BPO (intervenants « moi » + « Non assigné »), puis filtre sur la société de test : seuls ses tickets s’affichent.'),
     async ({ page }) => {
       const tickets = new TicketsPage(page);
       await tickets.goTo();
@@ -100,7 +101,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'ouvrir un ticket le réserve au BPO et affiche son détail',
-    { tag: ['@TC-CTL-03', '@p0', '@write'] },
+    meta('TC-CTL-03', 'Ouvre un ticket de la société de test : il est réservé au BPO (« Assigné à ») et le détail est complet (code FDE, cycle, société, données, Tiime expert, discussion).', { ecriture: true }),
     async ({ page }) => {
       const tickets = await openCompanyQueue(page);
       const me = await new AppShell(page).currentUserName();
@@ -127,7 +128,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'changer le statut d’un ticket en « Attente client »',
-    { tag: ['@TC-CTL-04', '@p0', '@write'] },
+    meta('TC-CTL-04', 'Passe un ticket en « Attente client » par le menu de statut, puis vérifie le toast et le statut en consultation. Ticket remis « À traiter » ensuite.', { ecriture: true }),
     async ({ page }) => {
       const tickets = await openCompanyQueue(page);
       const ticket = await tickets.openTicket(tickets.ticketItems.first());
@@ -144,7 +145,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'marquer un ticket résolu : passage au suivant et bouton désactivé',
-    { tag: ['@TC-CTL-05', '@p0', '@write'] },
+    meta('TC-CTL-05', 'Clique « Marquer résolu » : toast et passage au ticket suivant ; en consultation, le ticket est « Résolues » et le bouton désactivé. Ticket remis « À traiter » ensuite.', { ecriture: true }),
     async ({ page }) => {
       const tickets = await openCompanyQueue(page);
       const ticket = await tickets.openTicket(tickets.ticketItems.first());
@@ -165,7 +166,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'ignorer un contrôle exige un motif d’au moins 4 caractères',
-    { tag: ['@TC-CTL-06', '@p0', '@write'] },
+    meta('TC-CTL-06', 'Ouvre « Ignorer ce contrôle » : un motif de moins de 4 caractères bloque « Confirmer », « Annuler » ne change rien, un motif valide ignore le ticket. Ticket remis « À traiter » ensuite.', { ecriture: true }),
     async ({ page }) => {
       const tickets = await openCompanyQueue(page);
       const ticket = await tickets.openTicket(tickets.ticketItems.first());
@@ -207,7 +208,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'écrire dans la discussion interne d’un ticket',
-    { tag: ['@TC-CTL-07', '@p0', '@write'] },
+    meta('TC-CTL-07', 'Écrit un message unique dans la discussion interne d’un ticket (validation par Entrée) et vérifie qu’il apparaît dans le fil.', { ecriture: true }),
     async ({ page }) => {
       const tickets = await openCompanyQueue(page);
       await tickets.openTicket(tickets.ticketItems.first());
@@ -224,7 +225,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'créer, refuser en doublon puis supprimer une vue de tickets',
-    { tag: ['@TC-CTL-08', '@p1', '@write'] },
+    meta('TC-CTL-08', 'Crée une vue filtrée sur la société de test, vérifie le refus d’un doublon (« Vous avez déjà une vue portant ce nom. »), puis supprime la vue.', { ecriture: true }),
     async ({ page }) => {
       const tickets = new TicketsPage(page);
       await tickets.goTo();
@@ -268,7 +269,7 @@ test.describe('Contrôles FDE — BPO', { tag: ['@controles', '@role-bpo'] }, ()
 
   test(
     'le mode consultation ouvre un ticket sans le réserver',
-    { tag: ['@TC-CTL-10', '@p1', '@readonly'] },
+    meta('TC-CTL-10', 'Ouvre un ticket en mode consultation (?consultation=1) et vérifie qu’aucune réservation n’est faite.'),
     async ({ page }) => {
       const tickets = new TicketsPage(page);
       await tickets.goTo();

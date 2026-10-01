@@ -1,14 +1,15 @@
 import { loggedOutTest as test, expect } from '../fixtures';
 import { LoginPage } from '../../pages/LoginPage';
+import { meta } from '../meta';
 
 // Comportements de session vérifiables SANS compte : contexte vierge (`loggedOutTest`).
 // Réf. : swapn-qg-source-de-verite.md §2.2 (flux de connexion), §6.1 F-GLB-003.
 
-test.describe('Session — accès sans authentification', { tag: ['@auth', '@readonly'] }, () => {
+test.describe('Session — accès sans authentification', { tag: ['@auth'] }, () => {
   for (const path of ['/', '/annuaire', '/tickets']) {
     test(
       `une route protégée (${path}) sans session redirige vers Auth0 via /auth`,
-      { tag: ['@TC-AUTH-12', '@p0'] },
+      meta('TC-AUTH-12', 'Sans session, ouvre une route protégée et vérifie le passage par /auth puis la redirection vers Auth0.'),
       async ({ page }) => {
         // Suivi des navigations du cadre principal : on doit passer par /auth.
         const visited: string[] = [];
@@ -27,7 +28,7 @@ test.describe('Session — accès sans authentification', { tag: ['@auth', '@rea
 
   test(
     'un callback OAuth au state altéré affiche l’erreur de vérification de sécurité',
-    { tag: ['@TC-AUTH-13', '@p1'] },
+    meta('TC-AUTH-13', 'Ouvre /auth/callback avec un « state » falsifié et vérifie l’écran « Erreur d’authentification » avec « Réessayer » et « Changer de compte ».'),
     async ({ page }) => {
       const login = new LoginPage(page);
       await login.goto('/auth/callback?code=e2e-faux&state=e2e-faux');
@@ -43,10 +44,10 @@ test.describe('Session — accès sans authentification', { tag: ['@auth', '@rea
   );
 });
 
-test.describe('Pages d’erreur publiques', { tag: ['@nav', '@readonly'] }, () => {
+test.describe('Pages d’erreur publiques', { tag: ['@navigation'] }, () => {
   test(
     'une route inconnue affiche l’écran d’erreur générique (ANO-01)',
-    { tag: ['@TC-NAV-ERR-01', '@p2'] },
+    meta('TC-NAV-ERR-01', 'Ouvre une URL inexistante et vérifie l’écran « Une erreur est survenue » avec le lien « Retour à l’accueil » (comportement actuel, ANO-01).'),
     async ({ page }) => {
       // Comportement ACTUEL documenté : écran générique hors layout au lieu d'un
       // « Page non trouvée ». À faire évoluer quand ANO-01 sera corrigée.

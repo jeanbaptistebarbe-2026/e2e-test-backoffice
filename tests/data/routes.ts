@@ -23,8 +23,6 @@ export interface PageRoute {
    * fois l'anomalie corrigée, signal pour le mettre à jour).
    */
   knownIssue?: string;
-  /** Fait aussi partie du smoke test (`npm run test:smoke`). */
-  smoke?: boolean;
 }
 
 const h1 = (name: string | RegExp) => (page: Page) => page.getByRole('heading', { level: 1, name });
@@ -32,7 +30,7 @@ const inboxHeading = h1(/^Ouvert \(\d+\)$/);
 
 export const ADMIN_PAGES: PageRoute[] = [
   // --- Inbox (NAV-01) ---
-  { id: 'INB-01', menu: 'Inbox', path: '/', landmark: inboxHeading, smoke: true },
+  { id: 'INB-01', menu: 'Inbox', path: '/', landmark: inboxHeading },
   { id: 'INB-02', menu: 'Inbox', path: '/?view=assigned', landmark: inboxHeading },
   { id: 'INB-03', menu: 'Inbox', path: '/?view=followed', landmark: inboxHeading },
   { id: 'INB-04', menu: 'Inbox', path: '/?view=drafts', landmark: inboxHeading },
@@ -41,7 +39,6 @@ export const ADMIN_PAGES: PageRoute[] = [
   // --- Agenda (NAV-04) : chrome du calendrier, indépendant des données Google ---
   {
     id: 'AGD-01',
-    smoke: true,
     menu: 'Agenda',
     path: '/calendar',
     landmark: (page) => page.getByRole('tab', { name: 'Semaine', exact: true }),
@@ -50,14 +47,13 @@ export const ADMIN_PAGES: PageRoute[] = [
   // --- Annuaire (NAV-05) ---
   {
     id: 'ANN-01',
-    smoke: true,
     menu: 'Annuaire',
     path: '/annuaire',
     landmark: (page) => page.getByRole('columnheader', { name: 'Statut dossier' }),
   },
 
   // --- Kiosk (NAV-14, NAV-17) ---
-  { id: 'KIO-01', menu: 'Kiosk', path: '/knowledge-bases', landmark: (page) => page.getByRole('heading', { name: 'Documentation' }), smoke: true },
+  { id: 'KIO-01', menu: 'Kiosk', path: '/knowledge-bases', landmark: (page) => page.getByRole('heading', { name: 'Documentation' }) },
   { id: 'KIO-02', menu: 'Kiosk', path: '/knowledge-bases/notes-clients', landmark: h1('Notes clients') },
 
   // --- Administration › Général ---

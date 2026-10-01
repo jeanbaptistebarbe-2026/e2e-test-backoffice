@@ -1,8 +1,9 @@
 import { test, expect } from './fixtures';
 import { TemplatesPage } from '../pages/TemplatesPage';
+import { meta } from './meta';
 
-test.describe('Templates — administration (authentifié)', { tag: ['@admin', '@role-admin'] }, () => {
-  test('la liste des templates se charge', { tag: ['@TC-ADM-TPL-01', '@p0', '@smoke', '@readonly'] }, async ({ page }) => {
+test.describe('Templates — administration (authentifié)', { tag: ['@role-admin', '@administration'] }, () => {
+  test('la liste des templates se charge', meta('TC-ADM-TPL-01', 'Ouvre Administration › Templates et vérifie le bouton « Nouveau template » et la recherche.'), async ({ page }) => {
     const templates = new TemplatesPage(page);
     await templates.goToList();
 
@@ -11,7 +12,7 @@ test.describe('Templates — administration (authentifié)', { tag: ['@admin', '
     await expect(templates.searchInput).toBeVisible();
   });
 
-  test('cycle de vie d’un template : création, édition puis suppression', { tag: ['@TC-ADM-TPL-04', '@p1', '@write'] }, async ({ page }) => {
+  test('cycle de vie d’un template : création, édition puis suppression', meta('TC-ADM-TPL-04', 'Crée un template (nom, tribu, contenu), le modifie puis le supprime, en vérifiant la liste à chaque étape (données nettoyées).', { ecriture: true }), async ({ page }) => {
     const templates = new TemplatesPage(page);
     const ts = Date.now();
     const name = `TEMPLATE ${ts}`;

@@ -1,8 +1,9 @@
 import { test, expect } from './fixtures';
 import { CollaboratorsPage } from '../pages/CollaboratorsPage';
+import { meta } from './meta';
 
-test.describe('Collaborators — liste (authentifié)', { tag: ['@admin', '@readonly', '@role-admin'] }, () => {
-  test('la liste des collaborateurs se charge et est peuplée', { tag: ['@TC-ADM-COL-01', '@p0', '@smoke'] }, async ({ page }) => {
+test.describe('Collaborators — liste (authentifié)', { tag: ['@role-admin', '@administration'] }, () => {
+  test('la liste des collaborateurs se charge et est peuplée', meta('TC-ADM-COL-01', 'Ouvre Administration › Collaborateurs et vérifie la recherche, les colonnes attendues et la présence d’au moins un collaborateur.'), async ({ page }) => {
     const collaborators = new CollaboratorsPage(page);
     await collaborators.goToList();
 

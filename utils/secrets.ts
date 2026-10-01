@@ -27,7 +27,7 @@ import crypto from 'crypto';
  * par `--grep-invert=<clé>` était valide tant qu'on ne filtrait pas les tests : la
  * clé ne matchant aucun titre, tous les tests tournaient.
  *
- * Depuis l'introduction des tags (`@smoke`, `@readonly`, `@TC-INB-01`…), cette
+ * Depuis l'introduction des tags (`@ecriture`, `@role-bpo`…), cette
  * option est NÉCESSAIRE au filtrage, et la faire porter la clé provoquerait une
  * collision silencieuse : soit la clé est prise pour une expression de tags (et
  * n'exclut rien), soit une expression de tags est prise pour la clé (et le
@@ -87,7 +87,7 @@ function extractKey(source?: string): string | undefined {
 /**
  * Fallback historique : clé portée par `--grep-invert` dans PLAYWRIGHT_EXTRA_OPTIONS.
  * Refuse toute valeur ressemblant à une expression de tags, pour ne jamais confondre
- * un filtre légitime (`--grep-invert @quarantine`) avec une passphrase.
+ * un filtre légitime (`--grep-invert @ecriture`) avec une passphrase.
  */
 function extractLegacyGrepInvertKey(source?: string): string | undefined {
   if (!source) return undefined;

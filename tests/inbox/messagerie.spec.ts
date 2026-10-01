@@ -7,6 +7,7 @@ import { AppShell } from '../../pages/AppShell';
 import { QgApi } from '../../utils/api';
 import { credentialsFor } from '../../utils/roles';
 import { fetchEmailBySubject } from '../../utils/email-otp';
+import { meta } from '../meta';
 
 /**
  * Messagerie e-mail et interne (Lot 4), rôle ADMIN.
@@ -28,10 +29,10 @@ function trackApiWrites(page: Page): string[] {
   return writes;
 }
 
-test.describe('Messagerie — lecture', { tag: ['@inbox', '@readonly', '@role-admin'] }, () => {
+test.describe('Messagerie — lecture', { tag: ['@role-admin', '@messagerie'] }, () => {
   test(
     'les vues de la barre latérale mettent à jour l’URL et le compteur du titre',
-    { tag: ['@TC-INB-10', '@p0'] },
+    meta('TC-INB-10', 'Parcourt les vues Assigné, Suivi, Brouillons et Envoyés : l’URL suit la vue, et le compteur du titre égale celui de la barre latérale.'),
     async ({ page }) => {
       const inbox = new InboxPage(page);
       await inbox.goTo();
@@ -63,7 +64,7 @@ test.describe('Messagerie — lecture', { tag: ['@inbox', '@readonly', '@role-ad
 
   test(
     'une recherche sans résultat affiche le message dédié',
-    { tag: ['@TC-INB-11', '@p1'] },
+    meta('TC-INB-11', 'Recherche une chaîne introuvable et vérifie le message « Aucune conversation ne correspond à votre recherche. ».'),
     async ({ page }) => {
       const inbox = new InboxPage(page);
       await inbox.goTo();
@@ -76,7 +77,7 @@ test.describe('Messagerie — lecture', { tag: ['@inbox', '@readonly', '@role-ad
 
   test(
     'la boîte « Filtrer par » affiche ses valeurs par défaut',
-    { tag: ['@TC-INB-12', '@p1'] },
+    meta('TC-INB-12', 'Ouvre « Filtrer par » et vérifie les valeurs par défaut (Ouvert, Tous, Toutes, Plus récentes) et les boutons.'),
     async ({ page }) => {
       const inbox = new InboxPage(page);
       await inbox.goTo();
@@ -94,7 +95,7 @@ test.describe('Messagerie — lecture', { tag: ['@inbox', '@readonly', '@role-ad
 
   test(
     'ouvrir une conversation affiche son en-tête sans aucune écriture',
-    { tag: ['@TC-INB-13', '@p0'] },
+    meta('TC-INB-13', 'Ouvre une conversation envoyée et vérifie les actions de l’en-tête et de la zone de réponse, sans aucune requête d’écriture.'),
     async ({ page }) => {
       const writes = trackApiWrites(page);
       const inbox = new InboxPage(page);
@@ -114,7 +115,7 @@ test.describe('Messagerie — lecture', { tag: ['@inbox', '@readonly', '@role-ad
 
   test(
     'le formulaire « Envoyer un mail » valide destinataires, objet et corps',
-    { tag: ['@TC-INB-14', '@p0'] },
+    meta('TC-INB-14', 'Teste le formulaire « Envoyer un mail » : adresse invalide refusée, « Envoyer » désactivé sans objet, invite de brouillon à la fermeture, sans rien envoyer.'),
     async ({ page }) => {
       const writes = trackApiWrites(page);
       const inbox = new InboxPage(page);
@@ -149,7 +150,7 @@ test.describe('Messagerie — lecture', { tag: ['@inbox', '@readonly', '@role-ad
   );
 });
 
-test.describe('Messagerie — envoi et échanges', { tag: ['@inbox', '@write', '@role-admin'] }, () => {
+test.describe('Messagerie — envoi et échanges', { tag: ['@role-admin', '@messagerie', '@ecriture'] }, () => {
   // Parcours enchaîné sur UNE conversation créée par le premier test.
   test.describe.configure({ mode: 'serial' });
 
@@ -171,7 +172,7 @@ test.describe('Messagerie — envoi et échanges', { tag: ['@inbox', '@write', '
 
   test(
     'envoyer un mail depuis le BO : toast, vue « Envoyés » et réception réelle',
-    { tag: ['@TC-INB-20', '@p0'] },
+    meta('TC-INB-20', 'Envoie depuis le BO un mail à la boîte du compte : toast, présence dans « Envoyés » et réception réelle vérifiée par IMAP.'),
     async ({ page }) => {
       const me = credentialsFor('admin');
       const inbox = new InboxPage(page);
@@ -209,7 +210,7 @@ test.describe('Messagerie — envoi et échanges', { tag: ['@inbox', '@write', '
 
   test(
     'publier puis supprimer un commentaire interne, avec suggestion de mention',
-    { tag: ['@TC-INB-21', '@p0'] },
+    meta('TC-INB-21', 'Sur la conversation créée, vérifie la liste des mentions « @ », publie un commentaire interne puis le supprime.'),
     async ({ page }) => {
       test.skip(!threadId, 'Conversation de test absente (échec de TC-INB-20)');
       const inbox = new InboxPage(page);
@@ -240,7 +241,7 @@ test.describe('Messagerie — envoi et échanges', { tag: ['@inbox', '@write', '
 
   test(
     'répondre à la conversation : formulaire pré-rempli, envoi et réception',
-    { tag: ['@TC-INB-22', '@p1'] },
+    meta('TC-INB-22', 'Répond à la conversation : formulaire pré-rempli (« Re: <objet> », destinataire), envoi, puis réception vérifiée par IMAP.'),
     async ({ page }) => {
       test.skip(!threadId, 'Conversation de test absente (échec de TC-INB-20)');
       const me = credentialsFor('admin');
@@ -275,7 +276,7 @@ test.describe('Messagerie — envoi et échanges', { tag: ['@inbox', '@write', '
 
   test(
     'enregistrer un mail abandonné comme brouillon',
-    { tag: ['@TC-INB-23', '@p1'] },
+    meta('TC-INB-23', 'Ferme un mail abandonné, l’enregistre comme brouillon et vérifie sa présence dans « Brouillons » (brouillon supprimé ensuite).'),
     async ({ page }) => {
       const inbox = new InboxPage(page);
       const composer = new ComposerDialog(page);

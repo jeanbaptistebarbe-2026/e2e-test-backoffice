@@ -1,8 +1,9 @@
 import { test, expect } from './fixtures';
 import { SignaturesPage } from '../pages/SignaturesPage';
+import { meta } from './meta';
 
-test.describe('Signatures — administration (authentifié)', { tag: ['@admin', '@role-admin'] }, () => {
-  test('les deux pages de signatures existent et sont atteignables', { tag: ['@TC-ADM-SIG-01', '@p0', '@smoke', '@readonly'] }, async ({ page }) => {
+test.describe('Signatures — administration (authentifié)', { tag: ['@role-admin', '@administration'] }, () => {
+  test('les deux pages de signatures existent et sont atteignables', meta('TC-ADM-SIG-01', 'Ouvre « Signature de mail » (Administration) puis « Mes signatures » (Paramètres) et vérifie que les deux pages se chargent.'), async ({ page }) => {
     const sig = new SignaturesPage(page);
 
     await sig.goToList();
@@ -14,7 +15,7 @@ test.describe('Signatures — administration (authentifié)', { tag: ['@admin', 
     await expect(page).toHaveURL(/\/administration\/mes-signatures/);
   });
 
-  test('cycle de vie d’une signature : création, édition puis suppression', { tag: ['@TC-ADM-SIG-03', '@p1', '@write'] }, async ({ page }) => {
+  test('cycle de vie d’une signature : création, édition puis suppression', meta('TC-ADM-SIG-03', 'Crée une signature, la modifie puis la supprime, en vérifiant la liste à chaque étape (données nettoyées).', { ecriture: true }), async ({ page }) => {
     const sig = new SignaturesPage(page);
     const ts = Date.now();
     const name = `SIGNATURE ${ts}`;
