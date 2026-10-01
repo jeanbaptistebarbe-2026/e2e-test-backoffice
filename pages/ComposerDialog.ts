@@ -1,10 +1,13 @@
 import { Page, Locator, expect } from '@playwright/test';
 
 /**
- * Boîte de rédaction « Envoyer un mail » (F-INB-009), ouverte par « Nouveau mail »
- * ou par « Répondre » (alors pré-remplie : destinataire + « Re: <objet> »).
+ * Formulaire de rédaction d'un mail (F-INB-009), en deux variantes :
+ *   - `dialog` : boîte « Envoyer un mail » ouverte par « Nouveau mail » ;
+ *   - `inline` : formulaire affiché DANS la conversation par « Répondre »
+ *     (pré-rempli : destinataire + « Re: <objet> », sélecteur « Envoyer : »).
  */
 export class ComposerDialog {
+  /** Conteneur du formulaire : la boîte, ou la page pour la variante en ligne. */
   readonly dialog: Locator;
   readonly to: Locator;
   readonly subject: Locator;
@@ -15,14 +18,23 @@ export class ComposerDialog {
   /** Invite affichée quand on ferme un mail modifié (RG-INB-013). */
   readonly draftPrompt: Locator;
 
-  constructor(private readonly page: Page) {
-    this.dialog = page.getByRole('dialog', { name: 'Envoyer un mail' });
+  constructor(
+    private readonly page: Page,
+    mode: 'dialog' | 'inline' = 'dialog',
+  ) {
+    this.dialog = mode === 'dialog' ? page.getByRole('dialog', { name: 'Envoyer un mail' }) : page.locator('body');
     this.to = this.dialog.getByLabel('Destinataires');
     this.subject = this.dialog.getByPlaceholder('Objet du message');
-    this.body = this.dialog.locator('[contenteditable="true"]');
+    this.body = this.dialog.locator('[contenteditable="true"][data-placeholder="Écrivez votre message..."]');
     this.sendButton = this.dialog.getByRole('button', { name: 'Envoyer', exact: true });
     this.cancelButton = this.dialog.getByRole('button', { name: 'Annuler', exact: true });
-    this.draftPrompt = page.getByText('Enregistrer ce mail comme brouillon ?');
+    // Titre « Enregistrer ce brouillon ? » (ancien libellé « … ce mail comme brouillon ? »).
+    this.draftPrompt = page.getByRole('dialog', { name: /^Enregistrer ce (mail comme )?brouillon \?$/ });
+  }
+
+  /** Bouton de l'invite de brouillon : « Enregistrer » ou « Ne pas enregistrer ». */
+  draftChoice(name: 'Enregistrer' | 'Ne pas enregistrer'): Locator {
+    return this.draftPrompt.getByRole('button', { name, exact: true });
   }
 
   /** Puce d'un destinataire (bouton « Retirer <email> »). */

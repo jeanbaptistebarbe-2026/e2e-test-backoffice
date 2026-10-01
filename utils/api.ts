@@ -76,22 +76,34 @@ export class QgApi {
 
   // ─── Remises à l'état ──────────────────────────────────────────────────────
 
-  /** Remet un ticket FDE dans un statut donné (défaut « À traiter »). */
+  /**
+   * Remet un ticket FDE dans un statut donné (défaut « À traiter »).
+   * NB : la RÉSERVATION d'un ticket (collaboratorId + reservedUntil, posée à
+   * l'ouverture par un BPO) n'est pas libérable par l'API (`collaboratorId: null`
+   * refusé en 422) : elle expire seule au bout de 30 min.
+   */
   async setTicketStatus(companyId: string, ticketId: string, status = 'PENDING'): Promise<void> {
     await this.patch(`/companies/${companyId}/tickets/${ticketId}/status`, { status });
-  }
-
-  /**
-   * Retire l'intervenant d'un ticket (libère la réservation d'un BPO).
-   * Forme du corps à valider au premier passage (Q-006) : `collaboratorId: null`.
-   */
-  async unassignTicket(companyId: string, ticketId: string): Promise<void> {
-    await this.post(`/companies/${companyId}/tickets/${ticketId}/assign`, { collaboratorId: null });
   }
 
   /** Archive une conversation pour l'utilisateur courant (la retire d'Envoyés / Ouvert). */
   async archiveThread(threadId: string): Promise<void> {
     await this.post(`/thread-archives/${threadId}`);
+  }
+
+  /**
+   * Archive toutes les conversations ENVOYÉES non archivées dont l'objet correspond
+   * au motif. La synchronisation Gmail remonte des copies (« E2E <ts> », « Re: E2E
+   * <ts> ») APRÈS la fin d'un run : chaque run balaie donc aussi celles des runs
+   * précédents. Renvoie le nombre de conversations archivées.
+   */
+  async archiveSentThreads(subject: RegExp, search = 'E2E'): Promise<number> {
+    const { threads } = await this.get<{ threads: { id: string; subject?: string; displayTitle?: string; viewerArchived?: boolean }[] }>(
+      `/threads?page=1&page_size=100&sort=desc&flow=sent&search=${encodeURIComponent(search)}`,
+    );
+    const targets = threads.filter((t) => !t.viewerArchived && subject.test(t.subject ?? t.displayTitle ?? ''));
+    for (const t of targets) await this.archiveThread(t.id);
+    return targets.length;
   }
 
   async deleteDraft(draftId: string): Promise<void> {

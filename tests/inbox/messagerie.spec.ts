@@ -98,7 +98,8 @@ test.describe('Messagerie — lecture', { tag: ['@inbox', '@readonly', '@role-ad
     async ({ page }) => {
       const writes = trackApiWrites(page);
       const inbox = new InboxPage(page);
-      await inbox.goTo();
+      // « Envoyés » : uniquement des mails (l'Inbox mêle WhatsApp, interne…, sans « Répondre »).
+      await inbox.goTo('Envoyés');
       await inbox.threadItems.first().click();
 
       await expect(page).toHaveURL(/[?&]threadId=[0-9a-f-]{36}/);
@@ -141,7 +142,7 @@ test.describe('Messagerie — lecture', { tag: ['@inbox', '@readonly', '@role-ad
       // Fermeture avec contenu : invite de brouillon → « Ne pas enregistrer ».
       await composer.cancelButton.click();
       await expect(composer.draftPrompt).toBeVisible();
-      await page.getByRole('button', { name: 'Ne pas enregistrer', exact: true }).click();
+      await composer.draftChoice('Ne pas enregistrer').click();
       await expect(composer.dialog).toBeHidden();
       expect(writes, 'aucun envoi ni brouillon').toEqual([]);
     },
@@ -158,11 +159,11 @@ test.describe('Messagerie — envoi et échanges', { tag: ['@inbox', '@write', '
   let threadId: string | undefined;
 
   test.afterAll(async () => {
-    // Nettoyage : archiver la conversation de test (la retire d'« Envoyés »).
-    if (!threadId) return;
+    // Nettoyage : archiver les conversations de test envoyées (celle de ce run et les
+    // copies tardives des runs précédents, remontées par la synchronisation Gmail).
     const api = await QgApi.fromStorageState(authFile('admin'));
     try {
-      await api.archiveThread(threadId);
+      await api.archiveSentThreads(/^(Re: )*E2E \d{13}$/);
     } finally {
       await api.dispose();
     }
@@ -245,13 +246,14 @@ test.describe('Messagerie — envoi et échanges', { tag: ['@inbox', '@write', '
       const me = credentialsFor('admin');
       const inbox = new InboxPage(page);
       const conversation = new ConversationPanel(page);
-      const composer = new ComposerDialog(page);
+      // Depuis le nouveau build, la réponse s'écrit DANS la conversation (pas de boîte).
+      const composer = new ComposerDialog(page, 'inline');
       const shell = new AppShell(page);
       await inbox.goto(`/?view=sent&threadId=${threadId}`);
       await expect(conversation.subject(subject)).toBeVisible({ timeout: 20_000 });
 
       await conversation.replyButton.click();
-      await expect(composer.dialog).toBeVisible();
+      await expect(composer.subject).toBeVisible();
       await expect(composer.subject).toHaveValue(`Re: ${subject}`);
       await expect(composer.chip(me.imapUser)).toBeVisible();
 
@@ -288,7 +290,7 @@ test.describe('Messagerie — envoi et échanges', { tag: ['@inbox', '@write', '
       const saved = page.waitForResponse(
         (r) => new URL(r.url()).pathname === '/drafts' && r.request().method() === 'POST',
       );
-      await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+      await composer.draftChoice('Enregistrer').click();
       const response = await saved;
       expect(response.ok(), 'POST /drafts').toBe(true);
       const draftId = ((await response.json()) as { id: string }).id;
